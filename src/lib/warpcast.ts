@@ -39,32 +39,33 @@ export async function getFarcasterManifest() {
     signature: "0xdev_signature_placeholder_for_local_testing_only"
   };
 
-  return {
-    accountAssociation,
-    miniapp: {
-      version: "1",
-      name: frameName,
-      iconUrl: `${appUrl}/icon.png`,
-      homeUrl: appUrl,
-      imageUrl: `${appUrl}/opengraph-image.png`,
-      buttonTitle: `Launch App`,
-      splashImageUrl: `${appUrl}/opengraph-image.png`,
-      splashBackgroundColor: "#FFFFFF",
-      webhookUrl: `${appUrl}/api/webhook`,
-      // Metadata https://github.com/farcasterxyz/miniapps/discussions/191
-      subtitle: "Lets cook trading", // 30 characters, no emojis or special characters, short description under app name
-      description: "Farcaster trading simulator app", // 170 characters, no emojis or special characters, promotional message displayed on Mini App Page
-      primaryCategory: "social",
-      tags: ["mini-app", "celo", "trading", "futures", "crypto"], // up to 5 tags, filtering/search tags
-      tagline: "Built on Celo", // 30 characters, marketing tagline should be punchy and descriptive
-      ogTitle: `${frameName}`, // 30 characters, app name + short tag, Title case, no emojis
-      ogDescription: "Farcaster trading simulator app", // 100 characters, summarize core benefits in 1-2 lines
-      screenshotUrls: [
-        // 1284 x 2778, visual previews of the app, max 3 screenshots
-        `${appUrl}/opengraph-image.png`,
-      ],
-      heroImageUrl: `${appUrl}/opengraph-image.png`, // 1200 x 630px (1.91:1), promotional display image on top of the mini app store
-      noindex,
-    },
-  };
+ return {
+  accountAssociation,
+  miniapp: {
+    version: "1",
+    name: frameName,
+    iconUrl: `${appUrl}/icon.png`,
+    homeUrl: appUrl,
+    imageUrl: `${appUrl}/opengraph-image.png`,
+    buttonTitle: `Launch App`,
+    splashImageUrl: `${appUrl}/opengraph-image.png`,
+    splashBackgroundColor: "#FFFFFF",
+    webhookUrl: `${appUrl}/api/webhook`,
+    subtitle: "Lets cook trading",
+    description: "Farcaster trading simulator app",
+    primaryCategory: "social",
+    tags: ["mini-app", "celo", "trading", "futures", "crypto"],
+    tagline: "Built on Celo",
+    ogTitle: frameName,
+    ogDescription: "Farcaster trading simulator app",
+    screenshotUrls: [`${appUrl}/opengraph-image.png`],
+    heroImageUrl: `${appUrl}/opengraph-image.png`,
+
+    // ⬇️ Add your chains here
+    requiredChains: ['eip155:42220'],
+
+    noindex
+  },
+};
+
 }

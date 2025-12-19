@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAccount, useDisconnect, useConnect } from "wagmi";
+import { useMenu } from "@/contexts/menu-context";
 
 const MenuIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,12 +60,17 @@ const WalletIcon = () => (
 );
 
 export function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isMenuOpen, setIsMenuOpen } = useMenu();
   const router = useRouter();
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { connect, connectors } = useConnect();
+
+  // Handle menu toggle
+  const handleMenuToggle = (open: boolean) => {
+    setIsMenuOpen(open);
+  };
 
   const navItems = [
     { name: "Home", path: "/home", icon: <HomeIcon /> },
@@ -76,7 +81,7 @@ export function Navbar() {
 
   const handleNavigate = (path: string) => {
     router.push(path);
-    setIsMenuOpen(false);
+    handleMenuToggle(false);
   };
 
   const handleWalletAction = () => {
@@ -90,7 +95,7 @@ export function Navbar() {
         connect({ connector: farcasterConnector });
       }
     }
-    setIsMenuOpen(false);
+    handleMenuToggle(false);
   };
 
   const formatAddress = (addr: string) => {
@@ -114,15 +119,45 @@ export function Navbar() {
               </h1>
             </div>
 
-            {/* Burger Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(167,139,250,0.4)]"
-            >
-              <div className="text-[#A78BFA]">
-                {isMenuOpen ? <CloseIcon /> : <MenuIcon />}
-              </div>
-            </button>
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              {/* Airdrop button */}
+              <button
+                onClick={() => handleNavigate('/airdrop')}
+                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-emerald-900/50 to-emerald-950/50 hover:from-emerald-800/60 hover:to-emerald-900/60 border-2 border-emerald-700/40 hover:border-emerald-600/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.4)] group"
+                title="Airdrop"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400 group-hover:scale-110 transition-transform">
+                  <rect x="3" y="8" width="18" height="4" rx="1"/>
+                  <path d="M12 8v13"/>
+                  <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/>
+                  <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>
+                </svg>
+              </button>
+
+              {/* Help/About button */}
+              <button
+                onClick={() => handleNavigate('/about')}
+                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(167,139,250,0.4)] group"
+                title="About"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A78BFA] group-hover:scale-110 transition-transform">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <path d="M12 17h.01"/>
+                </svg>
+              </button>
+
+              {/* Burger Menu Button */}
+              <button
+                onClick={() => handleMenuToggle(!isMenuOpen)}
+                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(167,139,250,0.4)]"
+              >
+                <div className="text-[#A78BFA]">
+                  {isMenuOpen ? <CloseIcon /> : <MenuIcon />}
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -131,7 +166,7 @@ export function Navbar() {
       {isMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-          onClick={() => setIsMenuOpen(false)}
+          onClick={() => handleMenuToggle(false)}
         />
       )}
 
@@ -148,7 +183,7 @@ export function Navbar() {
               Menu
             </h2>
             <button
-              onClick={() => setIsMenuOpen(false)}
+              onClick={() => handleMenuToggle(false)}
               className="p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 text-[#A78BFA]"
             >
               <CloseIcon />

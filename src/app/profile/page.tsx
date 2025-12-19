@@ -12,6 +12,36 @@ const HomeIcon = ({ active }: { active?: boolean }) => (
   </svg>
 );
 
+const format2 = (value?: number) =>
+  typeof value === "number" ? value.toFixed(2) : "0.00";
+
+const copyToClipboard = async (text: string) => {
+  try {
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    // Fallback (works in Farcaster / iframes)
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const success = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return success;
+  } catch (err) {
+    console.error("Copy failed:", err);
+    return false;
+  }
+};
+
+
 const TrophyIcon = ({ active }: { active?: boolean }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-all duration-300 ${active ? "text-[#A78BFA] drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]" : "text-slate-500"}`}>
     <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
@@ -60,22 +90,31 @@ const UserIcon = () => (
   </svg>
 );
 
+interface TradeAction {
+  action: string;
+  time: number;
+}
+
+interface Trade {
+  trade_env_id: string;
+  actions: TradeAction[];
+  final_pnl: number;
+  final_profit: number;
+  created_at: string;
+}
+
 interface ProfileData {
-  fid: number;
-  name: string;
-  stats: {
-    total_games: number;
-    liquidation_times: number;
-  };
-  achivements: {
-    "highest pnl": number;
-  };
-  history: Array<{
-    trade_time: string;
-    initial_balance: number;
-    final_balance: number;
-    pnl: number;
-  }>;
+  username: string;
+  wallet: string;
+  total_games: number;
+  total_profit: number;
+  total_PnL: number;
+  energy: number;
+  streak_days: number;
+  invitation_key: string;
+  invited_key: string;
+  is_banned: boolean;
+  latest_trades: Trade[];
 }
 
 export default function ProfilePage() {
@@ -174,7 +213,7 @@ export default function ProfilePage() {
     user?.custody ||
     "0x0000...0000";
 
-  const displayName = profileData?.name || user?.displayName || user?.username || "User";
+  const displayName = profileData?.username || user?.displayName || user?.username || "User";
   const username = user?.username || "user";
   const pfpUrl = user?.pfpUrl;
 
@@ -262,141 +301,212 @@ export default function ProfilePage() {
           <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-[#8B5CF6] rounded-full"></div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl mb-6 px-4">
+        {/* Stats Grid - Row 1 */}
+        <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mb-4 px-4">
 
-          {/* Stats Card */}
-          <div className="group relative p-5 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border-2 border-slate-700/60 backdrop-blur-xl hover:border-[#8B5CF6]/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.2)]">
-            <div className="flex flex-col items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+          {/* Total Games Card */}
+          <div className="group relative p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border-2 border-slate-700/60 backdrop-blur-xl hover:border-[#8B5CF6]/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.2)]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                 <StatsIcon />
               </div>
-              <span className="text-sm font-bold text-slate-300">Stats</span>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="flex justify-between items-center px-2">
-                <span className="text-xs text-slate-400">Total Games:</span>
-                <span className="text-sm font-bold text-[#A78BFA]">
-                  {profileData?.stats?.total_games ?? 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center px-2">
-                <span className="text-xs text-slate-400">Liquidations:</span>
-                <span className="text-sm font-bold text-red-400">
-                  {profileData?.stats?.liquidation_times ?? 0}
-                </span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">Total Games</span>
+              <span className="text-2xl font-bold text-[#A78BFA]">
+                {profileData?.total_games ?? 0}
+              </span>
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/0 to-[#8B5CF6]/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
           </div>
 
-          {/* Achievements Card */}
-          <div className="group relative p-5 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border-2 border-slate-700/60 backdrop-blur-xl hover:border-[#8B5CF6]/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.2)]">
-            <div className="flex flex-col items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+          {/* Streak Days Card */}
+          <div className="group relative p-4 bg-gradient-to-br from-orange-900/30 to-orange-950/30 rounded-2xl border-2 border-orange-700/40 backdrop-blur-xl hover:border-orange-600/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(251,146,60,0.2)]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                </svg>
+              </div>
+              <span className="text-xs font-bold text-slate-400">Streak Days</span>
+              <span className="text-2xl font-bold text-orange-400">
+                {profileData?.streak_days ?? 0} 🔥
+              </span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-orange-500/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+          </div>
+
+        </div>
+
+        {/* Stats Grid - Row 2 */}
+        <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mb-4 px-4">
+
+          {/* Total Profit Card */}
+          <div className="group relative p-4 bg-gradient-to-br from-emerald-900/30 to-emerald-950/30 rounded-2xl border-2 border-emerald-700/40 backdrop-blur-xl hover:border-emerald-600/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(16,185,129,0.2)]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                 <AchievementIcon />
               </div>
-              <span className="text-sm font-bold text-slate-300">Achievements</span>
+              <span className="text-xs font-bold text-slate-400">Total Profit</span>
+              <span className={`text-lg font-semibold ${(profileData?.total_profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+  {(profileData?.total_profit ?? 0) >= 0 ? '+' : ''}{format2(profileData?.total_profit)}
+</span>
+
             </div>
-            <div className="text-center space-y-2">
-              <div className="flex flex-col items-center px-2">
-                <span className="text-xs text-slate-400 mb-1">Highest PNL</span>
-                <span className="text-lg font-bold text-emerald-400">
-                  ${profileData?.achivements?.["highest pnl"] ?? 0}
-                </span>
-              </div>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/0 to-[#8B5CF6]/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
           </div>
 
-          {/* History Card */}
-          <div className="group relative p-5 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border-2 border-slate-700/60 backdrop-blur-xl hover:border-[#8B5CF6]/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.2)]">
-            <div className="flex flex-col items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                <HistoryIcon />
+
+          {/* Total PnL Card */}
+          <div className="group relative p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border-2 border-slate-700/60 backdrop-blur-xl hover:border-[#8B5CF6]/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.2)]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A78BFA]">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
               </div>
-              <span className="text-sm font-bold text-slate-300">History</span>
-            </div>
-            <div className="text-center">
-              <span className="text-xs text-slate-400">
-                {profileData?.history?.length ?? 0} trades
-              </span>
+              <span className="text-xs font-bold text-slate-400">Total PnL</span>
+              <span
+  className={`text-lg font-semibold ${
+    (profileData?.total_PnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+  }`}
+>
+  {(profileData?.total_PnL ?? 0) >= 0 ? '+' : ''}
+  {format2(profileData?.total_PnL)}%
+</span>
+
+
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/0 to-[#8B5CF6]/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
           </div>
 
         </div>
 
-        {/* Trade History */}
-        {profileData && (
-          <div className="w-full max-w-2xl px-4 mb-6">
+        {/* Invitation Key Card */}
+        <div className="w-full max-w-2xl mb-6 px-4">
+          <div className="group relative p-4 bg-gradient-to-br from-[#8B5CF6]/20 to-[#7C3AED]/20 rounded-2xl border-2 border-[#8B5CF6]/40 backdrop-blur-xl hover:border-[#A78BFA]/60 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(139,92,246,0.3)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#8B5CF6]/20 rounded-xl flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A78BFA]">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Your Invi  tation Key</span>
+                  <span className="text-lg font-bold text-[#A78BFA] font-mono tracking-wider">
+                    {profileData?.invitation_key || '------'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+  if (!profileData?.invitation_key) return;
 
-            {profileData.history && Array.isArray(profileData.history) && profileData.history.length > 0 ? (
-              <div className="space-y-3">
-                {profileData.history.map((trade, idx) => {
-                  const profitLoss = trade.final_balance - trade.initial_balance;
-                  const isProfit = profitLoss >= 0;
+  try {
+    // Use browser's clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(profileData.invitation_key);
+      console.log("✅ Copied to clipboard");
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = profileData.invitation_key;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      console.log("✅ Copied to clipboard (fallback)");
+    }
+  } catch (err) {
+    console.error("❌ Copy failed:", err);
+  }
+}}
 
-                  return (
-                    <div
-                      key={idx}
-                      className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border-2 border-slate-700/50 p-4 backdrop-blur-xl hover:border-[#8B5CF6]/40 transition-all duration-300"
-                    >
-                      {/* Header: Time and PNL Badge */}
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-xs text-slate-400 font-mono">{trade.trade_time}</span>
-                        <div className={`px-3 py-1 rounded-full ${isProfit ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-red-500/20 border border-red-500/40'}`}>
-                          <span className={`text-sm font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {isProfit ? '+' : ''}{trade.pnl}%
-                          </span>
-                        </div>
+
+                className="p-2 bg-[#8B5CF6]/20 hover:bg-[#8B5CF6]/30 rounded-lg transition-colors duration-200"
+                title="Copy invitation key"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A78BFA]">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/0 to-[#8B5CF6]/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300"></div>
+          </div>
+        </div>
+
+        {/* Latest Trades Section */}
+        <div className="w-full max-w-2xl px-4 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <HistoryIcon />
+            <h2 className="text-lg font-bold text-slate-200">Latest Trades</h2>
+            <span className="text-xs text-slate-400">({profileData?.latest_trades?.length ?? 0})</span>
+          </div>
+
+          {profileData?.latest_trades && Array.isArray(profileData.latest_trades) && profileData.latest_trades.length > 0 ? (
+            <div className="space-y-3">
+              {profileData.latest_trades.map((trade, idx) => {
+                const isProfit = trade.final_pnl >= 0;
+                const tradeDate = new Date(trade.created_at);
+                const formattedDate = tradeDate.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border-2 border-slate-700/50 p-4 backdrop-blur-xl hover:border-[#8B5CF6]/40 transition-all duration-300"
+                  >
+                    {/* Header: Game ID, Time and PNL Badge */}
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[#A78BFA] font-mono">{trade.trade_env_id}</span>
+                        <span className="text-[10px] text-slate-500">{formattedDate}</span>
                       </div>
-
-                      {/* Balance Flow */}
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Initial</span>
-                          <span className="text-base font-bold text-slate-200">${trade.initial_balance.toLocaleString()}</span>
-                        </div>
-
-                        <div className="flex-1 mx-3 flex items-center">
-                          <div className="h-[2px] flex-1 bg-gradient-to-r from-slate-600 to-slate-700 rounded-full"></div>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`mx-1 ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                            <polyline points="9 18 15 12 9 6"/>
-                          </svg>
-                          <div className="h-[2px] flex-1 bg-gradient-to-r from-slate-700 to-slate-600 rounded-full"></div>
-                        </div>
-
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Final</span>
-                          <span className="text-base font-bold text-slate-200">${trade.final_balance.toLocaleString()}</span>
-                        </div>
-                      </div>
-
-                      {/* Profit/Loss Amount */}
-                      <div className="flex justify-center pt-2 border-t border-slate-700/50">
-                        <span className="text-xs text-slate-400">
-                          {isProfit ? 'Profit' : 'Loss'}:
-                          <span className={`ml-1 font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                            ${Math.abs(profitLoss).toLocaleString()}
-                          </span>
+                      <div className={`px-3 py-1 rounded-full ${isProfit ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-red-500/20 border border-red-500/40'}`}>
+                        <span className={`text-sm font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isProfit ? '+' : ''}{trade.final_pnl.toFixed(2)}%
                         </span>
                       </div>
                     </div>
-                  );
-                })}
+
+
+                    {/* Stats Row */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wide">Profit</span>
+                        <span className={`text-sm font-bold ${trade.final_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {trade.final_profit >= 0 ? '+' : ''}{trade.final_profit.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wide">PnL</span>
+                        <span className={`text-sm font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isProfit ? '+' : ''}{trade.final_pnl.toFixed(2)}%
+                        </span>
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 rounded-xl border border-slate-700/30 p-8 backdrop-blur-xl text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
+                <HistoryIcon />
               </div>
-            ) : (
-              <div className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 rounded-xl border border-slate-700/30 p-8 backdrop-blur-xl text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-slate-800/50 rounded-full flex items-center justify-center">
-                  <HistoryIcon />
-                </div>
-                <p className="text-slate-400 text-sm">No trades yet</p>
-                <p className="text-slate-500 text-xs mt-1">Start playing to build your history!</p>
-              </div>
-            )}
-          </div>
-        )}
+              <p className="text-slate-400 text-sm">No trades yet</p>
+              <p className="text-slate-500 text-xs mt-1">Start playing to build your history!</p>
+            </div>
+          )}
+        </div>
 
       </div>
 

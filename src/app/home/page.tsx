@@ -1,9 +1,21 @@
 // src/app/home/page.tsx
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
+import { useMenu } from "@/contexts/menu-context";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
-import { useAccount, useConnect, useConnectors } from "wagmi";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAccount, useConnect, useConnectors, useWriteContract, useWaitForTransactionReceipt, useReadContract, useBalance, useConfig, useSwitchChain } from "wagmi";
+import { celo, celoAlfajores } from "wagmi/chains";
+import { createWalletClient, custom, type Hash } from "viem";
+import gameABI from "@/app/game_abi";
+import tokenABI from "@/app/token_abi";
+
+// Contract addresses
+const GAME_CONTRACT_ADDRESS = "0x5931fC25bE1C8E40dA9147c5c11397f7422a0009" as `0x${string}`;
+const TOKEN_CONTRACT_ADDRESS = "0x346528259cdF48fa1e5B23194828B477362B80f0" as `0x${string}`;
+
+// Use Celo mainnet as default (or celoAlfajores for testnet)
+const TARGET_CHAIN = celo; // Change to celoAlfajores for testnet
 
 const LightningIcon = ({ className = "" }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -73,19 +85,95 @@ const HouseIcon = ({ className = "" }: { className?: string }) => (
     <polyline points="9 22 9 12 15 12 15 22"/>
   </svg>
 );
+const GiftIcon = ({ className = "" }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="8" width="18" height="4" rx="1"/>
+    <path d="M12 8v13"/>
+    <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/>
+    <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>
+  </svg>
+);
+const HelpIcon = ({ className = "" }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+    <path d="M12 17h.01"/>
+  </svg>
+);
 export default function HomePage() {
   const { context, isMiniAppReady } = useMiniApp();
+  const { isMenuOpen } = useMenu();
   const router = useRouter();
   // Farcaster SDK state
   const [fcReady, setFcReady] = useState(false);
   const [fcContext, setFcContext] = useState<any>(null);
   // Wallet state
-  const { address, isConnected, isConnecting } = useAccount();
+  const { address, isConnected, isConnecting, chainId } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
+  const { switchChain } = useSwitchChain();
+  
+  // Check if we're on the correct chain (Celo)
+  const isOnCorrectChain = chainId ? chainId === TARGET_CHAIN.id : false;
   // Energy state from backend
   const [energy, setEnergy] = useState<number | null>(null);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
   const [isLoadingEnergy, setIsLoadingEnergy] = useState(true);
+  
+  // Game session state
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isStartingGame, setIsStartingGame] = useState(false);
+  const [startGameError, setStartGameError] = useState<string | null>(null);
+  const [isStuckState, setIsStuckState] = useState(false); // Shows refresh button when stuck
+  const playButtonTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const PLAY_BUTTON_TIMEOUT_MS = 7000; // 7 seconds before showing "stuck" message
+  
+  // Get wagmi config for wallet client
+  const config = useConfig();
+  const [txHash, setTxHash] = useState<Hash | undefined>(undefined);
+  
+  // Contract write hooks
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+  
+  // Use our own hash state as backup
+  const currentHash = hash || txHash;
+  
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: currentHash,
+  });
+  
+  // Read token balance
+  const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
+    address: TOKEN_CONTRACT_ADDRESS,
+    abi: tokenABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  });
+
+  // Read CELO balance (native token for gas)
+  // Temporarily disabled to avoid getChainId issues with Farcaster connector
+  // We'll check balance differently or skip this check
+  const { data: celoBalanceData } = useBalance({
+    address: address,
+    query: {
+      enabled: false, // Disabled to avoid getChainId error - Farcaster connector issue
+    },
+  });
+
+  // Read minGamePrice from contract (to check if contract requires payment)
+  // Temporarily disabled to avoid getChainId issues
+  const { data: minGamePrice } = useReadContract({
+    address: GAME_CONTRACT_ADDRESS,
+    abi: gameABI,
+    functionName: 'minGamePrice',
+    query: {
+      enabled: false, // Disabled to avoid getChainId error - will use 0 as default
+    },
+  });
   /* ------------------- Farcaster SDK Init ------------------- */
   useEffect(() => {
     if (fcReady) return;
@@ -136,9 +224,12 @@ export default function HomePage() {
         if (res.ok) {
           const data = await res.json();
           console.log('✅ Energy data received:', data);
-          // Assuming backend returns { energy: 10 }
+          // Assuming backend returns { energy: 10, streak_days: 3 }
           if (data.energy !== undefined) {
             setEnergy(data.energy);
+          }
+          if (data.streak_days !== undefined) {
+            setStreakDays(data.streak_days);
           }
         } else {
           console.error('❌ Failed to fetch energy:', res.status);
@@ -165,14 +256,345 @@ export default function HomePage() {
     if (!addr || addr.length < 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
-  const handlePlayClick = () => {
-    console.log("Play button clicked! Navigating to Trade Area...");
-    if (energy && energy > 0) {
-      router.push('/tradearea');
-    } else {
+  // Helper to safely reset play button state
+  const resetPlayButtonState = useCallback(() => {
+    setIsStartingGame(false);
+    setTxHash(undefined);
+    setSessionId(null);
+    setIsStuckState(false);
+    if (playButtonTimeoutRef.current) {
+      clearTimeout(playButtonTimeoutRef.current);
+      playButtonTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Handle refresh when stuck
+  const handleRefreshPage = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  }, []);
+
+  // Handle start game session flow
+  const handlePlayClick = async () => {
+    if (!address || !isConnected) {
+      console.error("Wallet not connected");
+      setStartGameError("Please connect your wallet first");
+      return;
+    }
+    
+    if (!energy || energy <= 0) {
       console.log("Insufficient energy!");
+      setStartGameError("Insufficient energy to play");
+      return;
+    }
+
+    // Prevent double-clicks
+    if (isStartingGame || txHash || isPending || isConfirming) {
+      console.log("Already starting game, ignoring click");
+      return;
+    }
+
+    try {
+      setIsStartingGame(true);
+      setStartGameError(null);
+      
+      // Clear any existing timeout
+      if (playButtonTimeoutRef.current) {
+        clearTimeout(playButtonTimeoutRef.current);
+        playButtonTimeoutRef.current = null;
+      }
+      
+      // Step 0: Switch to Celo chain if not already on it
+      if (chainId && chainId !== TARGET_CHAIN.id) {
+        console.log(`🔄 Switching from chain ${chainId} to Celo (${TARGET_CHAIN.id})...`);
+        try {
+          await switchChain({ chainId: TARGET_CHAIN.id });
+          console.log('✅ Chain switched to Celo');
+          // Small delay to let the chain switch complete
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (switchError: any) {
+          console.error('❌ Failed to switch chain:', switchError);
+          const errorText = (switchError?.message || '').toLowerCase();
+          if (errorText.includes('user rejected') || errorText.includes('rejected')) {
+            setStartGameError('Please switch to Celo network to play.');
+          } else {
+            setStartGameError('Please switch to Celo network in your wallet.');
+          }
+          resetPlayButtonState();
+          return;
+        }
+      }
+      
+      // Step 1: Call API to create session (QuickAuth secured)
+      console.log('🟢 Creating game session...');
+      let sdk;
+      try {
+        const farcasterModule = await import("@farcaster/frame-sdk");
+        sdk = farcasterModule.sdk;
+      } catch (sdkError: any) {
+        console.error('❌ Failed to load Farcaster SDK:', sdkError);
+        setStartGameError('Failed to load SDK. Please refresh and try again.');
+        resetPlayButtonState();
+        return;
+      }
+      
+      let apiResponse;
+      try {
+        apiResponse = await sdk.quickAuth.fetch('/api/game/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ walletAddress: address }),
+        });
+      } catch (fetchError: any) {
+        console.error('❌ Network error calling API:', fetchError);
+        setStartGameError('Network error. Please check your connection and try again.');
+        resetPlayButtonState();
+        return;
+      }
+
+      if (!apiResponse.ok) {
+        let errorMessage = 'Failed to create game session';
+        try {
+          const errorData = await apiResponse.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error (${apiResponse.status})`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      let newSessionId;
+      try {
+        const responseData = await apiResponse.json();
+        newSessionId = responseData.sessionId;
+        if (!newSessionId) {
+          throw new Error('No session ID returned from server');
+        }
+      } catch (parseError: any) {
+        console.error('❌ Failed to parse API response:', parseError);
+        setStartGameError('Invalid server response. Please try again.');
+        resetPlayButtonState();
+        return;
+      }
+      
+      console.log('✅ Session created:', newSessionId);
+      setSessionId(newSessionId);
+
+      // Check if contract requires minimum payment
+      const requiredPayment = minGamePrice ? BigInt(String(minGamePrice)) : BigInt('80000000000000000'); // Default: 0.08 CELO
+      console.log('💰 Contract payment (minGamePrice or default):', requiredPayment.toString());
+
+      // Step 2: Call smart contract startGameSession on Celo
+      // Use viem directly with the connector to bypass wagmi's getChainId check
+      console.log('🟢 Calling startGameSession contract on Celo...', {
+        sessionId: newSessionId,
+        payment: requiredPayment.toString(),
+      });
+      
+      try {
+        // Get the connector from wagmi
+        const connector = config.connectors[0]; // Farcaster connector should be first
+        if (!connector) {
+          throw new Error('Wallet not connected');
+        }
+        
+        // Get the provider from connector
+        let provider: any;
+        try {
+          provider = await connector.getProvider();
+        } catch (providerError: any) {
+          console.error('❌ Failed to get provider:', providerError);
+          throw new Error('Wallet provider not available. Please reconnect your wallet.');
+        }
+        
+        if (!provider) {
+          throw new Error('Provider not available');
+        }
+        
+        // Create viem wallet client directly
+        const walletClient = createWalletClient({
+          chain: celo, // Explicitly set Celo chain
+          transport: custom(provider as any),
+          account: address as `0x${string}`,
+        });
+        
+        // Write contract using viem directly
+        console.log('🟢 Writing contract with viem walletClient...');
+        const hash = await walletClient.writeContract({
+          address: GAME_CONTRACT_ADDRESS,
+          abi: gameABI,
+          functionName: 'startGameSession',
+          args: [BigInt(newSessionId)],
+          value: requiredPayment as bigint,
+        });
+        
+        console.log('✅ Transaction sent, hash:', hash);
+        setTxHash(hash); // Store hash for receipt waiting
+        
+      } catch (directError: any) {
+        // Check if user rejected the transaction
+        const errorText = ((directError?.message || '') + (directError?.cause?.message || '') + (directError?.shortMessage || '')).toLowerCase();
+        if (errorText.includes('user rejected') || 
+            errorText.includes('rejected the request') ||
+            errorText.includes('user denied') ||
+            errorText.includes('denied transaction')) {
+          console.warn('⚠️ User rejected the transaction');
+          setStartGameError('Transaction cancelled. You can try again when ready.');
+          resetPlayButtonState();
+          return;
+        }
+        
+        // Check for insufficient funds
+        if (errorText.includes('insufficient') || errorText.includes('balance')) {
+          console.error('❌ Insufficient funds:', directError);
+          setStartGameError('Insufficient CELO balance for transaction.');
+          resetPlayButtonState();
+          return;
+        }
+        
+        // Check for contract execution errors
+        if (errorText.includes('execution reverted') || errorText.includes('revert')) {
+          console.error('❌ Contract execution reverted:', directError);
+          setStartGameError('Transaction failed. Please try again.');
+          resetPlayButtonState();
+          return;
+        }
+        
+        // If direct viem approach fails, try wagmi's writeContract as fallback
+        console.warn('Direct viem approach failed, trying wagmi writeContract:', directError);
+        
+        try {
+          writeContract({
+            address: GAME_CONTRACT_ADDRESS,
+            abi: gameABI,
+            functionName: 'startGameSession',
+            args: [BigInt(newSessionId)],
+            value: requiredPayment as bigint,
+          } as any);
+        } catch (wagmiError: any) {
+          console.error('❌ Wagmi fallback also failed:', wagmiError);
+          setStartGameError('Failed to send transaction. Please try again.');
+          resetPlayButtonState();
+          return;
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error starting game:', error);
+      const errorText = ((error?.message || '') + (error?.cause?.message || '')).toLowerCase();
+      if (errorText.includes('user rejected') || 
+          errorText.includes('rejected the request') ||
+          errorText.includes('user denied')) {
+        setStartGameError('Transaction cancelled. You can try again when ready.');
+      } else if (errorText.includes('chain') || errorText.includes('network')) {
+        setStartGameError('Please switch to Celo network to play.');
+      } else if (errorText.includes('insufficient') || errorText.includes('balance')) {
+        setStartGameError('Insufficient CELO balance.');
+      } else {
+        setStartGameError(error.message || 'Failed to start game. Please try again.');
+      }
+      resetPlayButtonState();
     }
   };
+
+  // Navigate to tradearea when transaction is confirmed
+  useEffect(() => {
+    const confirmedHash = hash || txHash;
+    if (isConfirmed && sessionId && confirmedHash) {
+      console.log('✅ Transaction confirmed! Navigating to game...');
+      // Don't set isStartingGame to false - let navigation happen while button stays disabled
+      // The component will unmount when navigation completes
+      router.push(`/tradearea?sessionId=${sessionId}`);
+    }
+  }, [isConfirmed, sessionId, hash, txHash, router]);
+
+  // Timeout for play button - show "stuck" message after 7 seconds
+  useEffect(() => {
+    // Start timeout when starting game process
+    if ((isStartingGame || txHash || isPending) && !isStuckState) {
+      // Clear any existing timeout
+      if (playButtonTimeoutRef.current) {
+        clearTimeout(playButtonTimeoutRef.current);
+      }
+
+      playButtonTimeoutRef.current = setTimeout(() => {
+        // If we're still in a loading state after timeout (and not confirmed/navigating)
+        if ((isStartingGame || txHash || isPending) && !isConfirmed) {
+          console.warn('⚠️ Play button stuck - showing refresh option');
+          setIsStuckState(true);
+        }
+      }, PLAY_BUTTON_TIMEOUT_MS);
+    }
+
+    // Clear timeout and stuck state on successful confirmation
+    if (isConfirmed) {
+      if (playButtonTimeoutRef.current) {
+        clearTimeout(playButtonTimeoutRef.current);
+        playButtonTimeoutRef.current = null;
+      }
+      setIsStuckState(false);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (playButtonTimeoutRef.current) {
+        clearTimeout(playButtonTimeoutRef.current);
+      }
+    };
+  }, [isStartingGame, txHash, isPending, isConfirmed, isStuckState]);
+
+  // Handle write errors with better messaging (only for wagmi fallback)
+  useEffect(() => {
+    if (writeError) {
+      console.error('❌ Contract write error (wagmi fallback):', writeError);
+      
+      // Only handle if we don't already have a txHash (meaning viem direct approach failed)
+      if (txHash) {
+        // Viem direct approach succeeded, ignore wagmi error
+        return;
+      }
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Transaction failed. Please try again.';
+      const fullErrorText = ((writeError.message || '') + ((writeError as any).shortMessage || '')).toLowerCase();
+      
+      // Check for chain mismatch error
+      if (fullErrorText.includes('does not match the target chain') || 
+          (fullErrorText.includes('chain') && fullErrorText.includes('mismatch'))) {
+        console.warn('Chain mismatch detected - need to switch to Celo');
+        errorMessage = 'Please switch to Celo network. Click Play again to switch.';
+      }
+      // Check for getChainId error (Farcaster connector issue)
+      else if (fullErrorText.includes('getchainid') || 
+          fullErrorText.includes('is not a function') ||
+          (writeError as any).cause?.message?.includes('getChainId')) {
+        console.warn('Chain ID error detected - Farcaster connector compatibility issue');
+        errorMessage = 'Wallet connection issue. Please try again.';
+      } else if (fullErrorText.includes('user rejected') || 
+          fullErrorText.includes('rejected the request') ||
+          fullErrorText.includes('user denied')) {
+        // User rejected transaction - just show a friendly message and allow retry
+        console.warn('⚠️ User rejected the transaction');
+        errorMessage = 'Transaction cancelled. You can try again when ready.';
+      } else if (fullErrorText.includes('insufficient') || 
+          fullErrorText.includes('balance')) {
+        errorMessage = 'Insufficient CELO balance for gas fees.';
+      } else if (fullErrorText.includes('execution reverted') || fullErrorText.includes('revert')) {
+        errorMessage = 'Transaction failed. Please try again.';
+      } else if (writeError.message) {
+        // Truncate long error messages
+        errorMessage = writeError.message.length > 80 
+          ? writeError.message.substring(0, 80) + '...' 
+          : writeError.message;
+      }
+      
+      setStartGameError(errorMessage);
+      resetPlayButtonState();
+    }
+  }, [writeError, txHash, resetPlayButtonState]);
   /* ------------------- Loading Screen ------------------- */
   if (!fcReady || !isMiniAppReady || isLoadingEnergy) {
     return (
@@ -233,12 +655,16 @@ export default function HomePage() {
       {/* Header with Welcome message */}
       <header className="w-full p-6 flex flex-col items-center z-10 mt-8">
         <div className="w-full max-w-md mb-6">
-          {/* Energy Display */}
-          <div className="mt-4 flex items-center justify-center gap-2 mb-6 bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-xl px-6 py-3 rounded-2xl border-2 border-slate-700/50 shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
-            <LightningIcon className="text-[#A78BFA] drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]" />
-            <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-[#A78BFA] to-white">
-              {energy !== null ? energy : '...'}
-            </span>
+          {/* Energy and Streak Display */}
+          <div className="mt-4 flex items-center justify-center gap-3 mb-6">
+            {/* Energy Display */}
+            <div className="flex items-center gap-2 bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-xl px-5 py-3 rounded-2xl border-2 border-slate-700/50 shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
+              <LightningIcon className="text-[#A78BFA] drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]" />
+              <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-[#A78BFA] to-white">
+                {energy !== null ? energy : '...'}
+              </span>
+            </div>
+
           </div>
           {/* Welcome message with username and profile pic */}
           <div className="text-center mb-4">
@@ -272,36 +698,107 @@ export default function HomePage() {
               <span className="text-xs text-red-400 font-semibold">⚠️ No energy left!</span>
             </div>
           )}
+          
+          {/* Error Message */}
+          {startGameError && (
+            <div className="mt-3 text-center">
+              <span className="text-xs text-red-400 font-semibold">⚠️ {startGameError}</span>
+            </div>
+          )}
+          
+          {/* Transaction Status */}
+          {(isPending || isConfirming) && (
+            <div className="mt-3 text-center">
+              <span className="text-xs text-blue-400 font-semibold">
+                {isPending ? '⏳ Waiting for approval...' : '⏳ Confirming transaction...'}
+              </span>
+            </div>
+          )}
         </div>
       </header>
       {/* Play button section */}
       <section className="flex-1 flex flex-col items-center justify-center z-10 pb-24">
         <div
-          className={`relative group ${energy && energy > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-          onClick={handlePlayClick}
+          className={`relative group ${
+            isStuckState 
+              ? 'cursor-pointer' 
+              : energy && energy > 0 && !isStartingGame && !isPending && !isConfirming && !txHash && isConnected 
+                ? 'cursor-pointer' 
+                : 'cursor-not-allowed opacity-50'
+          }`}
+          onClick={
+            isStuckState 
+              ? handleRefreshPage 
+              : (energy && energy > 0 && !isStartingGame && !isPending && !isConfirming && !txHash && isConnected 
+                ? handlePlayClick 
+                : undefined)
+          }
         >
-          {energy && energy > 0 && (
+          {/* Glow effect - show when ready to play OR when stuck (for refresh) */}
+          {(isStuckState || (energy && energy > 0 && !isStartingGame && !isPending && !isConfirming && !txHash && isConnected)) && (
             <div className="absolute inset-0 rounded-full">
-              <div className="absolute inset-0 bg-[#8B5CF6] rounded-full blur-[24px] opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+              <div className={`absolute inset-0 rounded-full blur-[24px] transition-opacity duration-500 ${
+                isStuckState 
+                  ? 'bg-[#f59e0b] opacity-40 group-hover:opacity-60' 
+                  : 'bg-[#8B5CF6] opacity-30 group-hover:opacity-50'
+              }`}></div>
             </div>
           )}
-          <div className={`relative w-40 h-40 bg-gradient-to-br from-[#A78BFA] via-[#8B5CF6] to-[#7C3AED] rounded-full flex flex-col items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.4),inset_0_1px_6px_rgba(255,255,255,0.15)] border-[3px] border-white/15 transition-all duration-300 ${
-            energy && energy > 0
-              ? 'group-hover:scale-[1.03] active:scale-95 group-hover:shadow-[0_0_32px_rgba(139,92,246,0.6),inset_0_1px_6px_rgba(255,255,255,0.2)]'
-              : 'grayscale'
+          <div className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.4),inset_0_1px_6px_rgba(255,255,255,0.15)] border-[3px] border-white/15 transition-all duration-300 ${
+            isStuckState
+              ? 'bg-gradient-to-br from-[#f59e0b] via-[#d97706] to-[#b45309] group-hover:scale-[1.03] active:scale-95 group-hover:shadow-[0_0_32px_rgba(245,158,11,0.6),inset_0_1px_6px_rgba(255,255,255,0.2)]'
+              : energy && energy > 0 && !isStartingGame && !isPending && !isConfirming && !txHash && isConnected
+                ? 'bg-gradient-to-br from-[#A78BFA] via-[#8B5CF6] to-[#7C3AED] group-hover:scale-[1.03] active:scale-95 group-hover:shadow-[0_0_32px_rgba(139,92,246,0.6),inset_0_1px_6px_rgba(255,255,255,0.2)]'
+                : 'bg-gradient-to-br from-[#A78BFA] via-[#8B5CF6] to-[#7C3AED] grayscale'
           }`}>
             <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/10"></div>
-            <div className={`relative z-10 transition-transform duration-300 ${energy && energy > 0 ? 'group-hover:scale-105' : ''}`}>
-              <PlayIcon />
+            <div className={`relative z-10 transition-transform duration-300 ${
+              isStuckState || (energy && energy > 0 && !isStartingGame && !isPending && !isConfirming && !txHash && isConnected) 
+                ? 'group-hover:scale-105' 
+                : ''
+            }`}>
+              {isStuckState ? (
+                /* Refresh icon when stuck */
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                  <path d="M16 16h5v5"/>
+                </svg>
+              ) : (isPending || isConfirming || isStartingGame || txHash) ? (
+                <div className="w-14 h-14 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <PlayIcon />
+              )}
             </div>
-            <div className="relative z-10 mt-2 text-white font-bold tracking-[0.15em] text-xs uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
-              {energy && energy > 0 ? 'Start Game' : 'No Energy'}
+            <div className="relative z-10 mt-2 text-white font-bold tracking-[0.12em] text-[10px] uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.4)] text-center px-2 leading-tight">
+              {isStuckState
+                ? 'Tap to Refresh'
+                : isStartingGame || isPending || isConfirming || txHash
+                  ? 'Starting...' 
+                  : energy && energy > 0 && isConnected
+                    ? 'Start Game' 
+                    : !isConnected 
+                      ? 'Connect Wallet'
+                      : 'No Energy'}
             </div>
           </div>
         </div>
+        
+        {/* Stuck state message below the button */}
+        {isStuckState && (
+          <div className="mt-6 text-center animate-pulse">
+            <p className="text-amber-400 text-sm font-semibold">
+              ⚠️ Taking longer than expected
+            </p>
+            <p className="text-amber-300/80 text-xs mt-1">
+              Tap the button above to refresh
+            </p>
+          </div>
+        )}
       </section>
-      {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 w-full bg-gradient-to-t from-[#0F172A] via-[#0F172A]/95 to-transparent backdrop-blur-2xl border-t-2 border-slate-800/60 pb-safe z-50 shadow-[0_-4px_16px_rgba(0,0,0,0.5)]">
+      {/* Bottom navigation - hidden when hamburger menu is open */}
+      <nav className={`fixed bottom-0 left-0 w-full bg-gradient-to-t from-[#0F172A] via-[#0F172A]/95 to-transparent backdrop-blur-2xl border-t-2 border-slate-800/60 pb-safe z-50 shadow-[0_-4px_16px_rgba(0,0,0,0.5)] transition-all duration-300 ${isMenuOpen ? 'opacity-0 pointer-events-none translate-y-full' : 'opacity-100 translate-y-0'}`}>
         <div className="flex justify-around items-center py-5 px-4">
           <button className="flex flex-col items-center gap-1.5 group relative">
             <div className="absolute -inset-2 bg-[#8B5CF6]/15 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

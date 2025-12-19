@@ -9,7 +9,7 @@ export default function RootPage() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const hasPostedUserRef = useRef(false);
+  const hasAuthenticatedRef = useRef(false);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
@@ -26,43 +26,57 @@ export default function RootPage() {
     }
   }, [isMiniAppReady, isConnected, isConnecting, connectors, connect]);
 
-  // Auto-POST user data and redirect to home
+  // Auto-authenticate user and redirect to home
   useEffect(() => {
     const authenticateAndRedirect = async () => {
-      // Wait for miniapp to be ready
-      if (!isMiniAppReady || hasPostedUserRef.current || !context?.user) {
+      // Wait for miniapp to be ready and wallet to be connected
+      if (!isMiniAppReady || hasAuthenticatedRef.current || !context?.user) {
         return;
       }
 
-      // Prevent multiple POSTs
-      hasPostedUserRef.current = true;
+      // Wait for wallet connection if still connecting
+      if (isConnecting) {
+        return;
+      }
+
+      // Prevent multiple authentication attempts
+      hasAuthenticatedRef.current = true;
 
       console.log('🟢 Authenticating user...');
 
       try {
         const user = context.user;
-        const userData = {
+        const username = user.username || user.displayName || '';
+        const walletAddress = address ||
+          user.verified_addresses?.eth_addresses?.[0] ||
+          user.custody ||
+          '';
+
+        console.log('🟢 User data:', {
           fid: user.fid,
-          username: user.username,
+          username: username,
           displayName: user.displayName,
-          pfpUrl: user.pfpUrl,
-          custody: user.custody,
-          verifications: user.verifications,
-        };
+          wallet: walletAddress,
+        });
 
-        console.log('🟢 Posting user data:', userData);
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (username) params.append('username', username);
+        if (walletAddress) params.append('wallet', walletAddress);
 
-        // Use fetch with QuickAuth
+        // Use fetch with QuickAuth to GET the profile with username and wallet
         const { sdk } = await import("@farcaster/frame-sdk");
-        const res = await sdk.quickAuth.fetch('/api/profile', {
-          method: 'POST',
+        const profileUrl = `/api/profile?${params.toString()}`;
+        console.log('🟢 Calling profile API:', profileUrl);
+
+        const res = await sdk.quickAuth.fetch(profileUrl, {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(userData),
         });
 
-        console.log('🟢 POST response status:', res.status);
+        console.log('🟢 GET response status:', res.status);
 
         if (res.ok) {
           const data = await res.json();
@@ -76,18 +90,18 @@ export default function RootPage() {
         } else {
           const errorText = await res.text();
           console.error('❌ Failed to authenticate user:', res.status, errorText);
-          hasPostedUserRef.current = false;
+          hasAuthenticatedRef.current = false;
           setIsAuthenticating(false);
         }
       } catch (error) {
         console.error('❌ Error authenticating user:', error);
-        hasPostedUserRef.current = false;
+        hasAuthenticatedRef.current = false;
         setIsAuthenticating(false);
       }
     };
 
     authenticateAndRedirect();
-  }, [isMiniAppReady, context, router]);
+  }, [isMiniAppReady, context, router, address, isConnecting]);
 
   // Loading screen
   return (
@@ -103,7 +117,7 @@ export default function RootPage() {
 
           {/* Loading text */}
           <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-[#A78BFA] to-white mb-2">
-            {!isMiniAppReady ? 'Loading MiniApp...' : 'Authenticating...'}
+            {!isMiniAppReady ? 'Loading MiniApp...' : isConnecting ? 'Connecting Wallet...' : 'Authenticating...'}
           </h2>
           <p className="text-slate-400 text-sm">
             Please wait while we set things up
@@ -122,6 +136,15 @@ export default function RootPage() {
               <p className="text-red-400 text-sm">
                 Authentication failed. Please try again.
               </p>
+              <button
+                onClick={() => {
+                  hasAuthenticatedRef.current = false;
+                  setIsAuthenticating(true);
+                }}
+                className="mt-3 px-4 py-2 bg-[#A78BFA] hover:bg-[#8B5CF6] text-white rounded-lg text-sm transition-colors"
+              >
+                Retry
+              </button>
             </div>
           )}
         </div>

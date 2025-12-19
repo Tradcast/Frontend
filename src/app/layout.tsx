@@ -2,8 +2,10 @@
 import type { Metadata } from 'next';
 import { preconnect } from 'react-dom';
 import './globals.css';
-import { Navbar } from '@/components/navbar';
+import { ConditionalNavbar } from '@/components/ConditionalNavbar';
 import Providers from "@/components/providers";
+import { MenuProvider } from "@/contexts/menu-context";
+
 
 // Preconnect to Farcaster auth for faster authentication
 preconnect('https://auth.farcaster.xyz');
@@ -46,14 +48,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>  {/* Removed inter.className */}
-        {/* Navbar is included on all pages */}
+      <body>
         <div className="relative flex min-h-screen flex-col">
           <Providers>
-            <Navbar />
-            <main className="flex-1">
-              {children}
-            </main>
+            <MenuProvider>
+              <ConditionalNavbar />
+              <main className="flex-1">
+                {children}
+              </main>
+            </MenuProvider>
           </Providers>
         </div>
       </body>
