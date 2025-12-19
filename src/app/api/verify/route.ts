@@ -4,7 +4,6 @@ import { verifyQuickAuth } from '@/lib/quick-auth-utils';
 import { env } from '@/lib/env';
 import * as crypto from 'crypto';
 
-// CRITICAL: Move this to environment variable in production!
 const SECRET_KEY = process.env.WS_SECRET || 'ws_secret';
 
 function encrypt(text: string, secret: string): string {
