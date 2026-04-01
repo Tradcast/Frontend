@@ -1,10 +1,11 @@
 // src/app/api/verify/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyQuickAuth } from '@/lib/quick-auth-utils';
+import { verifyAuth } from '@/lib/quick-auth-utils';
 import * as crypto from 'crypto';
 
 // CRITICAL: Move this to environment variable in production!
 const SECRET_KEY = process.env.WS_SECRET || 'ws_secret';
+const BACKEND_URL = process.env.BACKEND_API_URL || 'http://localhost:5009';
 
 function encrypt(text: string, secret: string): string {
   const algorithm = 'aes-256-gcm';
@@ -22,7 +23,7 @@ function encrypt(text: string, secret: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const fid = await verifyQuickAuth(req);
+    const auth = await verifyAuth(req);
 
     // Generate random token
     const token = crypto.randomBytes(32).toString('hex');
@@ -30,18 +31,21 @@ export async function POST(req: NextRequest) {
     // Create session end time (e.g., 6 minutes from now)
     const sessionEnd = new Date(Date.now() + 6 * 60 * 1000).toISOString();
 
-    // Create payload
-    const payload = {
+    // Create payload: always send fid (numeric for Farcaster, wallet address for MiniPay/Web) for backend
+    const payload: any = {
       token,
       session_end: sessionEnd,
-      fid
     };
+    const fidValue = auth.type === 'farcaster' && auth.fid != null
+      ? auth.fid
+      : (auth.type === 'minipay' || auth.type === 'web') ? auth.wallet : undefined;
+    if (fidValue !== undefined) payload.fid = fidValue;
 
     // Encrypt the payload
     const encryptedToken = encrypt(JSON.stringify(payload), SECRET_KEY);
 
     // Send to WebSocket server
-    const wsUrl = 'http://localhost:8031/start_session';
+    const wsUrl = `${BACKEND_URL}/api/v1/session/start_session`;
 
     const wsResponse = await fetch(wsUrl, {
       method: 'POST',

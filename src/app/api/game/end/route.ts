@@ -1,6 +1,6 @@
 // src/app/api/game/end/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyQuickAuth } from '@/lib/quick-auth-utils';
+import { verifyAuth } from '@/lib/quick-auth-utils';
 import { createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
@@ -10,20 +10,26 @@ import { encodePacked, keccak256, parseEther } from 'viem';
 
 const SEED = '0xe420469c478d66526e7e1c31e8d44a350b9661ec6a81506835442e1084d92bc8';
 
-const pass = decrypt(process.env.ENCRYPTED_PASS || '', 'r7p4l9');
-const privateKey = decrypt(process.env.ENCRYPTED_PK || '', pass);
-const account = privateKeyToAccount(privateKey as `0x${string}`);
-const walletClient = createWalletClient({
-  account,
-  chain: celo,
-  transport: http()
-});
-
+function getSigningWallet() {
+  const pass = decrypt(process.env.ENCRYPTED_PASS || '', 'r7p4l9');
+  const privateKey = decrypt(process.env.ENCRYPTED_PK || '', pass);
+  if (!privateKey || !/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
+    throw new Error('Server signing key not configured');
+  }
+  const account = privateKeyToAccount(privateKey as `0x${string}`);
+  const walletClient = createWalletClient({
+    account,
+    chain: celo,
+    transport: http(),
+  });
+  return { account, walletClient };
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify QuickAuth to ensure the request is from authenticated Farcaster user
-    const fid = await verifyQuickAuth(req);
+    // Verify auth - supports both Farcaster QuickAuth and MiniPay wallet auth
+    const auth = await verifyAuth(req);
+    console.log('🟢 Game end auth:', auth.type, auth.type === 'farcaster' ? `fid:${auth.fid}` : `wallet:${auth.wallet}`);
 
     const body = await req.json();
     const { sessionId, points, walletAddress } = body;
@@ -42,8 +48,10 @@ export async function POST(req: NextRequest) {
       )
     );
 
+    const { account, walletClient } = getSigningWallet();
     const signature = await walletClient.signMessage({
-      message: { raw: hash }
+      account,
+      message: { raw: hash },
     });
 
     return NextResponse.json({

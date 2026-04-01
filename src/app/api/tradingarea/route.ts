@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     wss.on('connection', (ws: any, req: any, fid: any) => {
       console.log('✅ WebSocket connection established, FID:', fid);
 
-      const backendUrl = 'wss://api.simmerliq.com/ws'; //'ws://localhost:8031/ws';
+      const backendUrl = 'wss://dev.simmerliq.com/ws'; //'wss://api.simmerliq.com/ws'; //'ws://localhost:8031/ws';
       console.log('🔵 Connecting to backend WS:', backendUrl);
       const backendWS = new WebSocket(backendUrl);
 

@@ -42,6 +42,8 @@ async function verifyFidOwnership(fid: number, appKey: `0x${string}`) {
       abi: KEY_REGISTRY_ABI,
       functionName: "keyDataOf",
       args: [BigInt(fid), appKey],
+      // EIP-7702 chain types can require this field on CallParameters; omit for plain read calls
+      authorizationList: undefined,
     });
 
     return result.state === 1 && result.keyType === 1;

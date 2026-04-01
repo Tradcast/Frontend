@@ -1,8 +1,10 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
-import { useAccount, useDisconnect, useConnect } from "wagmi";
+import { useTranslations } from "next-intl";
+import { useRouter, usePathname } from "@/i18n/navigation";
+import { useAccount } from "wagmi";
 import { useMenu } from "@/contexts/menu-context";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const MenuIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -44,56 +46,25 @@ const UserIcon = () => (
   </svg>
 );
 
-const CreditCardIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-    <line x1="1" y1="10" x2="23" y2="10"/>
-  </svg>
-);
-
-const WalletIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
-    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
-    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
-  </svg>
-);
-
 export function Navbar() {
+  const t = useTranslations("nav");
   const { isMenuOpen, setIsMenuOpen } = useMenu();
   const router = useRouter();
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { connect, connectors } = useConnect();
 
-  // Handle menu toggle
   const handleMenuToggle = (open: boolean) => {
     setIsMenuOpen(open);
   };
 
   const navItems = [
-    { name: "Home", path: "/home", icon: <HomeIcon /> },
-    { name: "Leaderboard", path: "/leaderboard", icon: <TrophyIcon /> },
-    { name: "Profile", path: "/profile", icon: <UserIcon /> },
+    { name: t("home"), path: "/home", icon: <HomeIcon /> },
+    { name: t("leaderboard"), path: "/leaderboard", icon: <TrophyIcon /> },
+    { name: t("profile"), path: "/profile", icon: <UserIcon /> },
   ];
 
   const handleNavigate = (path: string) => {
     router.push(path);
-    handleMenuToggle(false);
-  };
-
-  const handleWalletAction = () => {
-    if (isConnected) {
-      disconnect();
-    } else {
-      const farcasterConnector = connectors.find(c =>
-        /frame|farcaster/i.test(c.id + c.name)
-      );
-      if (farcasterConnector) {
-        connect({ connector: farcasterConnector });
-      }
-    }
     handleMenuToggle(false);
   };
 
@@ -105,7 +76,7 @@ export function Navbar() {
   return (
     <>
       {/* Navbar Header */}
-      <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#0F172A] backdrop-blur-xl border-b-2 border-[#8B5CF6]/30 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+      <header className="fixed top-0 left-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -113,20 +84,21 @@ export function Navbar() {
               className="flex items-center cursor-pointer"
               onClick={() => handleNavigate('/home')}
             >
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#A78BFA] via-white to-[#A78BFA]">
-                Tradcast
+              <h1 className="text-2xl font-bold text-gray-800">
+                Trad<span className="text-[#d76afd]">cast</span>
               </h1>
             </div>
 
             {/* Action buttons */}
             <div className="flex items-center gap-2">
+              <LanguageSwitcher />
               {/* Airdrop button */}
               <button
                 onClick={() => handleNavigate('/airdrop')}
-                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-emerald-900/50 to-emerald-950/50 hover:from-emerald-800/60 hover:to-emerald-900/60 border-2 border-emerald-700/40 hover:border-emerald-600/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(16,185,129,0.4)] group"
-                title="Airdrop"
+                className="relative z-50 p-2.5 rounded-xl bg-[#bdecf6]/30 hover:bg-[#bdecf6]/50 border border-[#bdecf6] transition-all duration-300 group"
+                title={t("airdrop")}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600 group-hover:scale-110 transition-transform">
                   <rect x="3" y="8" width="18" height="4" rx="1"/>
                   <path d="M12 8v13"/>
                   <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/>
@@ -137,10 +109,10 @@ export function Navbar() {
               {/* Help/About button */}
               <button
                 onClick={() => handleNavigate('/about')}
-                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(167,139,250,0.4)] group"
-                title="About"
+                className="relative z-50 p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all duration-300 group"
+                title={t("about")}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#A78BFA] group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600 group-hover:scale-110 transition-transform">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                   <path d="M12 17h.01"/>
@@ -150,9 +122,9 @@ export function Navbar() {
               {/* Burger Menu Button */}
               <button
                 onClick={() => handleMenuToggle(!isMenuOpen)}
-                className="relative z-50 p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 hover:shadow-[0_0_16px_rgba(167,139,250,0.4)]"
+                className="relative z-50 p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all duration-300"
               >
-                <div className="text-[#A78BFA]">
+                <div className="text-gray-700">
                   {isMenuOpen ? <CloseIcon /> : <MenuIcon />}
                 </div>
               </button>
@@ -164,26 +136,26 @@ export function Navbar() {
       {/* Mobile Menu Overlay */}
       {isMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           onClick={() => handleMenuToggle(false)}
         />
       )}
 
       {/* Sidebar Menu */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] border-l-2 border-[#8B5CF6]/30 shadow-[-4px_0_24px_rgba(0,0,0,0.5)] z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Menu Header */}
-        <div className="p-6 border-b-2 border-[#8B5CF6]/20">
+        <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-[#A78BFA] to-white">
-              Menu
+            <h2 className="text-xl font-bold text-gray-800">
+              {t("menu")}
             </h2>
             <button
               onClick={() => handleMenuToggle(false)}
-              className="p-2 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-[#8B5CF6]/40 hover:border-[#A78BFA]/60 transition-all duration-300 text-[#A78BFA]"
+              className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all duration-300 text-gray-700"
             >
               <CloseIcon />
             </button>
@@ -200,16 +172,16 @@ export function Navbar() {
                 onClick={() => handleNavigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                   isActive
-                    ? "bg-gradient-to-r from-[#8B5CF6]/30 to-[#A78BFA]/30 border-2 border-[#A78BFA]/50 shadow-[0_0_16px_rgba(167,139,250,0.3)]"
-                    : "bg-slate-800/40 border-2 border-slate-700/40 hover:border-[#8B5CF6]/50 hover:bg-slate-800/60"
+                    ? "bg-[#d76afd]/10 border-2 border-[#d76afd]/30"
+                    : "bg-gray-50 border-2 border-transparent hover:border-gray-200 hover:bg-gray-100"
                 }`}
               >
-                <div className={isActive ? "text-[#A78BFA]" : "text-slate-400"}>
+                <div className={isActive ? "text-[#d76afd]" : "text-gray-500"}>
                   {item.icon}
                 </div>
                 <span
                   className={`text-base font-semibold ${
-                    isActive ? "text-white" : "text-slate-300"
+                    isActive ? "text-[#d76afd]" : "text-gray-700"
                   }`}
                 >
                   {item.name}
@@ -220,32 +192,20 @@ export function Navbar() {
         </nav>
 
         {/* Wallet Section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t-2 border-[#8B5CF6]/20 bg-gradient-to-t from-[#0F172A] to-transparent">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
           {/* Wallet Status */}
           {isConnected && address && (
-            <div className="mb-3 p-3 bg-slate-800/60 rounded-lg border-2 border-slate-700/40">
+            <div className="mb-3 p-3 bg-white rounded-xl border border-gray-200">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"></div>
-                <span className="text-xs text-slate-400 font-semibold">Connected</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <span className="text-xs text-gray-500 font-semibold">{t("connected")}</span>
               </div>
-              <p className="text-sm text-slate-300 font-mono">
+              <p className="text-sm text-gray-700 font-mono">
                 {formatAddress(address)}
               </p>
             </div>
           )}
 
-          {/* Wallet Action Button */}
-          <button
-            onClick={handleWalletAction}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              isConnected
-                ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 border-2 border-red-500/50 text-white shadow-[0_0_16px_rgba(239,68,68,0.3)]"
-                : "bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] hover:from-[#7C3AED] hover:to-[#8B5CF6] border-2 border-[#A78BFA]/50 text-white shadow-[0_0_16px_rgba(167,139,250,0.4)]"
-            }`}
-          >
-            <WalletIcon />
-            {isConnected ? "Disconnect Wallet" : "Connect Wallet"}
-          </button>
         </div>
       </div>
     </>

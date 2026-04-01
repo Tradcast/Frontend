@@ -1,12 +1,13 @@
 // src/app/api/game/start/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyQuickAuth } from '@/lib/quick-auth-utils';
+import { verifyAuth } from '@/lib/quick-auth-utils';
 import * as crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify QuickAuth to ensure the request is from authenticated Farcaster user
-    const fid = await verifyQuickAuth(req);
+    // Verify auth - supports both Farcaster QuickAuth and MiniPay wallet auth
+    const auth = await verifyAuth(req);
+    console.log('🟢 Game start auth:', auth.type, auth.type === 'farcaster' ? `fid:${auth.fid}` : `wallet:${auth.wallet}`);
 
     // Get wallet address from request body (frontend will send it)
     const body = await req.json();
@@ -26,11 +27,13 @@ export async function POST(req: NextRequest) {
     // Convert hex to BigInt for contract (uint256)
     const sessionIdBigInt = BigInt(sessionIdHex);
 
-    // Return session ID to frontend
+    // Return session ID to frontend (include auth info)
     return NextResponse.json({
       sessionId: sessionIdBigInt.toString(),
       sessionIdHex: sessionIdHex,
-      fid: fid.toString()
+      authType: auth.type,
+      fid: auth.fid?.toString() || null,
+      wallet: auth.wallet || null
     });
 
   } catch (e: any) {

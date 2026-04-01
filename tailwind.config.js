@@ -15,6 +15,15 @@ module.exports = {
     },
     extend: {
       colors: {
+        // Custom app colors
+        "app-bg": "#ebeff2",
+        "app-card": "#f7f8fa",
+        "app-accent": "#bdecf6",
+        "app-primary": "#d76afd",
+        "app-text": "#1a1a1a",
+        "app-text-secondary": "#6b7280",
+        
+        // CSS variable based colors
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -58,10 +67,25 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: 1 },
+          "50%": { opacity: 0.7 },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "float": "float 3s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+      },
+      boxShadow: {
+        "soft": "0 4px 20px rgba(0, 0, 0, 0.08)",
+        "card": "0 2px 12px rgba(0, 0, 0, 0.06)",
+        "button": "0 4px 14px rgba(215, 106, 253, 0.25)",
       },
     },
   },

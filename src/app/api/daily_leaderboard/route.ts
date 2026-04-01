@@ -1,12 +1,21 @@
 // src/app/api/daily_leaderboard/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyQuickAuth } from '@/lib/quick-auth-utils';
+import { verifyAuth } from '@/lib/quick-auth-utils';
+
+const BACKEND_URL = process.env.BACKEND_API_URL || 'http://localhost:5009';
 
 export async function GET(req: NextRequest) {
   try {
-    const fid = await verifyQuickAuth(req);
+    const auth = await verifyAuth(req);
 
-    const backendUrl = `http://localhost:5009/api/v1/user/leaderboard/daily?fid=${fid}`;
+    // Build backend URL with appropriate auth parameter
+    const params = new URLSearchParams();
+    const fidValue = auth.type === 'farcaster' && auth.fid != null
+      ? auth.fid.toString()
+      : (auth.type === 'minipay' || auth.type === 'web') ? auth.wallet : undefined;
+    if (fidValue) params.append('fid', fidValue);
+
+    const backendUrl = `${BACKEND_URL}/api/v1/user/leaderboard/daily?${params.toString()}`;
 
     const response = await fetch(backendUrl, {
       method: 'GET',
@@ -24,7 +33,7 @@ export async function GET(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (e: any) {
-    console.error('❌ API /weekly_leaderboard error:', e.message);
+    console.error('❌ API /daily_leaderboard error:', e.message);
     return NextResponse.json({ message: e.message }, { status: 401 });
   }
 }
