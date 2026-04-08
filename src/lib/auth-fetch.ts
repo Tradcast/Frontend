@@ -82,7 +82,7 @@ export function createAuthFetch(
     
     // For Farcaster, use SDK quickAuth
     console.log('🟣 FARCASTER: Fetching with QuickAuth', url);
-    const { sdk } = await import("@farcaster/frame-sdk");
+    const { sdk } = await import("@farcaster/miniapp-sdk");
     return sdk.quickAuth.fetch(url, fetchOptions);
   };
 }
@@ -119,7 +119,7 @@ export function getAuthFetch(
     
     // For Farcaster, use SDK quickAuth
     console.log('🟣 FARCASTER: Fetching with QuickAuth', url);
-    const { sdk } = await import("@farcaster/frame-sdk");
+    const { sdk } = await import("@farcaster/miniapp-sdk");
     return sdk.quickAuth.fetch(url, options);
   };
 }

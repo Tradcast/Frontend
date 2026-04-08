@@ -14,7 +14,9 @@
     "about": "Game da",
     "language": "Harshe",
     "menu": "Menu",
-    "connected": "An haɗa"
+    "connected": "An haɗa",
+    "notifications": "Sanarwa",
+    "noNotifications": "Har yanzu babu sanarwa"
   },
   "home": {
     "loadingData": "Ana loda bayananku...",

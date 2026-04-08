@@ -14,7 +14,9 @@
     "about": "Ka ga",
     "language": "Puo",
     "menu": "Lenaneo",
-    "connected": "E golagantswe"
+    "connected": "E golagantswe",
+    "notifications": "Dikitsiso",
+    "noNotifications": "Ga go na dikitsiso go jaana"
   },
   "home": {
     "loadingData": "E a tsenya tshedimosetso ya gago...",

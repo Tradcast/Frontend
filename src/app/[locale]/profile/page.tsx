@@ -132,7 +132,7 @@ export default function ProfilePage() {
 
     const initFarcaster = async () => {
       try {
-        const { sdk } = await import("@farcaster/frame-sdk");
+        const { sdk } = await import("@farcaster/miniapp-sdk");
         await sdk.actions.ready();
         const context = await sdk.context;
         console.log("✅ Farcaster context:", context);

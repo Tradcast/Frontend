@@ -21,6 +21,7 @@ import tokenABI from "@/app/token_abi";
 import { getAuthFetch } from "@/lib/auth-fetch";
 import { HowToPlayOverlay } from "@/components/HowToPlayOverlay";
 import { SplashScreen } from "@/components/SplashScreen";
+import { useNotifications } from "@/contexts/notification-context";
 import { ensureWalletOnCeloChain } from "@/lib/ensure-celo-chain";
 import { getCeloFeeCurrencyForPaymentToken } from "@/lib/celo-fee-currency";
 import { sendCeloWebTxWithStableGasFeeOrCelo } from "@/lib/celo-web-stable-gas-tx";
@@ -88,6 +89,7 @@ export default function HomePage() {
   const tNav = useTranslations("nav");
   const { context, isMiniAppReady, isMiniPay, isWeb, isFarcaster } = useMiniApp();
   const { isMenuOpen } = useMenu();
+  const { setNotificationsFromApi } = useNotifications();
   const router = useRouter();
   const searchParams = useSearchParams();
   const refreshTpoints = searchParams.get('refreshTpoints') === '1';
@@ -178,7 +180,7 @@ export default function HomePage() {
     if (fcReady || isMiniPay || isWeb) return;
     const initFarcaster = async () => {
       try {
-        const { sdk } = await import("@farcaster/frame-sdk");
+        const { sdk } = await import("@farcaster/miniapp-sdk");
         await sdk.actions.ready();
         const context = await sdk.context;
         console.log("✅ Farcaster context:", context);
@@ -364,6 +366,10 @@ export default function HomePage() {
           }
           if (data.giveaway_eligible !== undefined) {
             setGiveawayEligible(data.giveaway_eligible);
+          }
+          if (data.notification) {
+            const notifs = Array.isArray(data.notification) ? data.notification : [];
+            setNotificationsFromApi(notifs, data.notifications_read !== false);
           }
         } else {
           console.error('❌ Failed to fetch energy:', res.status);
@@ -931,9 +937,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        <p className="text-[10px] text-gray-500 text-center max-w-[18rem] mt-4 px-3 leading-relaxed">
-          {t("playCostNote")}
-        </p>
+        {isWeb && (
+          <p className="text-[10px] text-gray-500 text-center max-w-[18rem] mt-4 px-3 leading-relaxed">
+            {t("playCostNote")}
+          </p>
+        )}
 
         {/* Username & Wallet */}
         <div className="flex flex-col items-center mt-5">

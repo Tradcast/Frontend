@@ -174,7 +174,7 @@ export default function TradeAreaPage() {
         });
       } else {
         // Farcaster: use SDK quickAuth
-        const { sdk } = await import("@farcaster/frame-sdk");
+        const { sdk } = await import("@farcaster/miniapp-sdk");
         response = await sdk.quickAuth.fetch('/api/verify', {
           method: 'POST',
         });
@@ -762,7 +762,7 @@ export default function TradeAreaPage() {
           body: JSON.stringify({ sessionId, points, walletAddress: address }),
         });
       } else {
-        const { sdk } = await import("@farcaster/frame-sdk");
+        const { sdk } = await import("@farcaster/miniapp-sdk");
         apiResponse = await sdk.quickAuth.fetch('/api/game/end', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

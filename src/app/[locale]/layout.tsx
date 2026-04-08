@@ -7,6 +7,7 @@ import { ConditionalNavbar } from "@/components/ConditionalNavbar";
 import { LocaleHtmlLang } from "@/components/LocaleHtmlLang";
 import Providers from "@/components/providers";
 import { MenuProvider } from "@/contexts/menu-context";
+import { NotificationProvider } from "@/contexts/notification-context";
 import { routing } from "@/i18n/routing";
 
 preconnect("https://auth.farcaster.xyz");
@@ -69,8 +70,10 @@ export default async function LocaleLayout({
       <LocaleHtmlLang />
       <Providers>
         <MenuProvider>
-          <ConditionalNavbar />
-          <main className="flex-1">{children}</main>
+          <NotificationProvider>
+            <ConditionalNavbar />
+            <main className="flex-1">{children}</main>
+          </NotificationProvider>
         </MenuProvider>
       </Providers>
     </NextIntlClientProvider>

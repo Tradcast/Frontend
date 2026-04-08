@@ -14,7 +14,9 @@
     "about": "Mayelana",
     "language": "Ulimi",
     "menu": "Imenyu",
-    "connected": "Ixhunywe"
+    "connected": "Ixhunywe",
+    "notifications": "Izaziso",
+    "noNotifications": "Azikho izaziso okwamanje"
   },
   "home": {
     "loadingData": "Iyalayisha idatha yakho...",

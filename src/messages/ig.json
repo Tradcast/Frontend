@@ -14,7 +14,9 @@
     "about": "Banyere",
     "language": "Asụsụ",
     "menu": "Nchịkọta",
-    "connected": "Ejikọtara"
+    "connected": "Ejikọtara",
+    "notifications": "Nziọkwa",
+    "noNotifications": "Enweghị nziọkwa ugbu a"
   },
   "home": {
     "loadingData": "Na-ebu data gị...",

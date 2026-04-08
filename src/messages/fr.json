@@ -14,7 +14,9 @@
     "about": "À propos",
     "language": "Langue",
     "menu": "Menu",
-    "connected": "Connecté"
+    "connected": "Connecté",
+    "notifications": "Notifications",
+    "noNotifications": "Pas encore de notifications"
   },
   "home": {
     "loadingData": "Chargement de vos données...",

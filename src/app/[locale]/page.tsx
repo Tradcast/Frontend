@@ -360,7 +360,7 @@ export default function RootPage() {
         if (walletAddress) params.append('wallet', walletAddress);
 
         // Use fetch with QuickAuth to GET the profile with username and wallet
-        const { sdk } = await import("@farcaster/frame-sdk");
+        const { sdk } = await import("@farcaster/miniapp-sdk");
         const profileUrl = `/api/profile?${params.toString()}`;
         console.log('🟢 Farcaster: Calling profile API:', profileUrl);
 

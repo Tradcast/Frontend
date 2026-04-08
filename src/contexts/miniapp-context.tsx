@@ -96,7 +96,7 @@ export function MiniAppProvider({ children, addMiniAppOnLoad }: MiniAppProviderP
     setIsMiniPay(false);
     
     try {
-      const { sdk } = await import("@farcaster/frame-sdk");
+      const { sdk } = await import("@farcaster/miniapp-sdk");
       const ctx = await sdk.context;
       if (ctx) {
         setContext(ctx);
@@ -130,7 +130,7 @@ export function MiniAppProvider({ children, addMiniAppOnLoad }: MiniAppProviderP
     }
 
     try {
-      const { sdk } = await import("@farcaster/frame-sdk");
+      const { sdk } = await import("@farcaster/miniapp-sdk");
       const result = await sdk.actions.addFrame();
       if (result) {
         return result;

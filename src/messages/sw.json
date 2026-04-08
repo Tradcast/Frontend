@@ -14,7 +14,9 @@
     "about": "Kuhusu",
     "language": "Lugha",
     "menu": "Menyu",
-    "connected": "Imeunganishwa"
+    "connected": "Imeunganishwa",
+    "notifications": "Arifa",
+    "noNotifications": "Bado hakuna arifa"
   },
   "home": {
     "loadingData": "Inapakia data yako...",

@@ -14,7 +14,9 @@
     "about": "Malunga",
     "language": "Ulwimi",
     "menu": "Imenyu",
-    "connected": "Iqhagamshelwe"
+    "connected": "Iqhagamshelwe",
+    "notifications": "Izaziso",
+    "noNotifications": "Akukho zaziso okwangoku"
   },
   "home": {
     "loadingData": "Iyalayisha idatha yakho...",

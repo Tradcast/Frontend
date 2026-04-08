@@ -14,7 +14,9 @@
     "about": "Nípa",
     "language": "Èdè",
     "menu": "Àkójọ",
-    "connected": "Ti sopọ̀"
+    "connected": "Ti sopọ̀",
+    "notifications": "Àwọn ìfitónilétí",
+    "noNotifications": "Kò sí ìfitónilétí síbẹ̀"
   },
   "home": {
     "loadingData": "Ń gbé data rẹ...",
