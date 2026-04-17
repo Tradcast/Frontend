@@ -37,6 +37,13 @@ const UserIcon = ({ active }: { active?: boolean }) => (
   </svg>
 );
 
+const MarketIcon = ({ active }: { active?: boolean }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-all duration-300 ${active ? "text-[#d76afd]" : "text-gray-400"}`}>
+    <path d="M3 9h18l-1.5 10a2 2 0 0 1-2 1.8H6.5a2 2 0 0 1-2-1.8L3 9Z"/>
+    <path d="M8 9V6a4 4 0 0 1 8 0v3"/>
+  </svg>
+);
+
 type LeaderboardType = 'daily' | 'weekly' | 'overall' | 'monthly';
 
 interface LeaderboardEntry {
@@ -506,7 +513,7 @@ export default function LeaderboardPage() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 shadow-soft">
-        <div className="flex justify-around items-center py-4 px-4 pb-safe">
+        <div className="flex justify-around items-center py-4 px-2 pb-safe">
           <button
             onClick={() => router.push('/home')}
             className="flex flex-col items-center gap-1 group relative"
@@ -523,6 +530,16 @@ export default function LeaderboardPage() {
             </div>
             <span className="text-[10px] font-semibold text-[#d76afd]">{tNav("leaderboard")}</span>
             <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#d76afd] rounded-full"></div>
+          </button>
+
+          <button
+            onClick={() => router.push('/market')}
+            className="flex flex-col items-center gap-1 group relative"
+          >
+            <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
+              <MarketIcon />
+            </div>
+            <span className="text-[10px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("market")}</span>
           </button>
 
           <button

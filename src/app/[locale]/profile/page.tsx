@@ -41,6 +41,13 @@ const UserIconSmall = ({ active }: { active?: boolean }) => (
   </svg>
 );
 
+const MarketIcon = ({ active }: { active?: boolean }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-all duration-300 ${active ? "text-[#d76afd]" : "text-gray-400"}`}>
+    <path d="M3 9h18l-1.5 10a2 2 0 0 1-2 1.8H6.5a2 2 0 0 1-2-1.8L3 9Z"/>
+    <path d="M8 9V6a4 4 0 0 1 8 0v3"/>
+  </svg>
+);
+
 const StatsIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#d76afd]">
     <line x1="18" y1="20" x2="18" y2="10"/>
@@ -433,6 +440,51 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Streak Claim Card (Coming Soon) */}
+        <div className="w-full max-w-2xl mb-4 px-4">
+          <div className="relative p-4 bg-gradient-to-br from-orange-50 via-white to-amber-50 rounded-2xl border border-orange-200 shadow-card overflow-hidden">
+            {/* Decorative flame */}
+            <div className="absolute -top-4 -right-4 text-6xl opacity-10 select-none pointer-events-none">🔥</div>
+
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-2xl">🔥</span>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-gray-800 leading-tight">Daily Streak Reward</h3>
+                  <p className="text-[11px] text-gray-500 leading-tight">
+                    Keep a streak of 10+ days to claim free TPOINTs every day.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-amber-700 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Soon
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between bg-white/70 backdrop-blur-sm rounded-xl border border-orange-100 px-3 py-2.5">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Your Streak</p>
+                <p className="text-xl font-bold text-orange-500 tabular-nums">
+                  {profileData?.streak_days ?? 0} 🔥
+                </p>
+              </div>
+              <button
+                disabled
+                className="text-[11px] font-bold px-4 py-2 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+              >
+                Claim · Coming Soon
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-400 mt-2 text-center">
+              Up to 5,000 TPOINTs per claim · 1 claim every 23.5 hours.
+            </p>
+          </div>
+        </div>
+
         {/* Invitation Key Card */}
         <div className="w-full max-w-2xl mb-6 px-4">
           <div className="group relative p-4 bg-gradient-to-r from-[#d76afd]/10 to-[#bdecf6]/20 rounded-2xl border border-[#d76afd]/30 shadow-card hover:shadow-soft transition-all duration-300">
@@ -595,7 +647,7 @@ export default function ProfilePage() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 pb-safe z-50 shadow-soft">
-        <div className="flex justify-around items-center py-4 px-4">
+        <div className="flex justify-around items-center py-4 px-2">
           <button
             onClick={() => router.push('/home')}
             className="flex flex-col items-center gap-1 group relative"
@@ -603,7 +655,7 @@ export default function ProfilePage() {
             <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
               <HomeIcon />
             </div>
-            <span className="text-xs font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("home")}</span>
+            <span className="text-[11px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("home")}</span>
           </button>
 
           <button
@@ -613,14 +665,24 @@ export default function ProfilePage() {
             <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
               <TrophyIcon />
             </div>
-            <span className="text-xs font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("leaderboard")}</span>
+            <span className="text-[11px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("leaderboard")}</span>
+          </button>
+
+          <button
+            onClick={() => router.push('/market')}
+            className="flex flex-col items-center gap-1 group relative"
+          >
+            <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
+              <MarketIcon />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("market")}</span>
           </button>
 
           <button className="flex flex-col items-center gap-1 group relative">
             <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
               <UserIconSmall active={true} />
             </div>
-            <span className="text-xs font-semibold text-[#d76afd]">{tNav("profile")}</span>
+            <span className="text-[11px] font-semibold text-[#d76afd]">{tNav("profile")}</span>
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#d76afd] rounded-full"></div>
           </button>
         </div>

@@ -41,6 +41,10 @@ const PAYMENT_TOKENS = [
 // Use Celo mainnet as default (or celoAlfajores for testnet)
 const TARGET_CHAIN = celo; // Change to celoAlfajores for testnet
 
+const GIVEAWAY_ANNOUNCEMENT_END = new Date('2026-04-27T00:00:00Z').getTime();
+const HOME_OPEN_HIGHLIGHT_CAMPAIGN = 'telegram-giveaway-2026-04-26';
+const OPEN_HINT_DURATION_MS = 4200;
+
 const LightningIcon = ({ className = "" }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -57,6 +61,12 @@ const TelegramIcon = ({ className = "" }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M21.7 3.4a1 1 0 0 0-1-.14L2.6 10.2a1 1 0 0 0 .06 1.88l4.1 1.5 1.54 5.06a1 1 0 0 0 1.8.27l2.4-3.13 3.9 2.87a1 1 0 0 0 1.57-.62l3-13.6a1 1 0 0 0-.23-.91ZM8.4 13.2l9.45-6.45-7.95 7.64-.4 1.9-1.1-3.09Z"/>
   </svg>
+);
+
+const OneTimeHintMarker = () => (
+  <div className="absolute inset-0 rounded-2xl pointer-events-none">
+    <div className="absolute inset-0 rounded-2xl border-2 border-yellow-300/90 shadow-[0_0_0_2px_rgba(254,240,138,0.65),0_0_28px_rgba(250,204,21,0.45)] animate-[pulse_1.5s_ease-in-out_infinite]" />
+  </div>
 );
 
 const HomeIcon = ({ active }: { active?: boolean }) => (
@@ -81,6 +91,13 @@ const UserIcon = ({ active }: { active?: boolean }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-all duration-300 ${active ? "text-[#d76afd]" : "text-gray-400"}`}>
     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
     <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const MarketIcon = ({ active }: { active?: boolean }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-all duration-300 ${active ? "text-[#d76afd]" : "text-gray-400"}`}>
+    <path d="M3 9h18l-1.5 10a2 2 0 0 1-2 1.8H6.5a2 2 0 0 1-2-1.8L3 9Z"/>
+    <path d="M8 9V6a4 4 0 0 1 8 0v3"/>
   </svg>
 );
 
@@ -119,6 +136,7 @@ export default function HomePage() {
   const TOURNAMENT_END = new Date('2026-05-01T00:00:00Z').getTime();
   const [tournamentStatus, setTournamentStatus] = useState<'upcoming' | 'active' | 'ended'>('upcoming');
   const [tournamentCountdown, setTournamentCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [showOpenHighlights, setShowOpenHighlights] = useState(false);
   
   // Game session state
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -484,6 +502,13 @@ export default function HomePage() {
   const displayName = apiUsername || user?.displayName || user?.username || "User";
   const username = apiUsername || user?.username || "user";
   const pfpUrl = user?.pfpUrl;
+  const highlightUserKey = React.useMemo(() => {
+    if (address) return address.toLowerCase();
+    if (user?.fid) return `fid:${String(user.fid)}`;
+    if (user?.username) return `username:${String(user.username).toLowerCase()}`;
+    return null;
+  }, [address, user?.fid, user?.username]);
+  const shouldShowGiveawayAnnouncement = Date.now() < GIVEAWAY_ANNOUNCEMENT_END;
   const formatAddress = (addr: string) => {
     if (!addr || addr.length < 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -758,6 +783,23 @@ export default function HomePage() {
     }
   }, [isConfirmed, sessionId, txHash, router, isWeb, isFarcaster, isMiniPay]);
 
+  // One-time "on app open" highlight per user, cached in localStorage.
+  useEffect(() => {
+    if (!highlightUserKey || typeof window === "undefined") return;
+    const storageKey = `tradcast:home-highlight:${HOME_OPEN_HIGHLIGHT_CAMPAIGN}:${highlightUserKey}`;
+    const alreadyShown = window.localStorage.getItem(storageKey);
+    if (alreadyShown === "1") return;
+
+    setShowOpenHighlights(true);
+    window.localStorage.setItem(storageKey, "1");
+
+    const timer = window.setTimeout(() => {
+      setShowOpenHighlights(false);
+    }, OPEN_HINT_DURATION_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightUserKey]);
+
   /* ------------------- Loading Screen ------------------- */
   if (!fcReady || !isMiniAppReady || isLoadingEnergy) {
     return (
@@ -855,7 +897,37 @@ export default function HomePage() {
 
       {/* Tournament Banner */}
       <div className="relative z-10 px-4 -mt-0.5">
-        <div className="max-w-sm mx-auto bg-white rounded-2xl border border-gray-100 shadow-card px-3 py-2.5">
+        {shouldShowGiveawayAnnouncement && (
+          <a
+            href="https://t.me/simmerliq"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative block max-w-sm mx-auto bg-white rounded-2xl border border-sky-100 shadow-card px-3 py-2.5 mb-2"
+          >
+            {showOpenHighlights && <OneTimeHintMarker />}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0">
+                  <TelegramIcon className="w-4 h-4 text-sky-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-gray-800 leading-tight">
+                    Telegram Subscribers Giveaway - 26 April
+                  </p>
+                  <p className="text-[10px] text-sky-600 font-semibold">
+                    Join Telegram to be eligible
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] px-2 py-1 rounded-full bg-sky-50 text-sky-600 font-semibold border border-sky-100 shrink-0">
+                Join
+              </span>
+            </div>
+          </a>
+        )}
+
+        <div className="relative max-w-sm mx-auto bg-white rounded-2xl border border-gray-100 shadow-card px-3 py-2.5">
+          {showOpenHighlights && <OneTimeHintMarker />}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base">🏆</span>
@@ -977,7 +1049,7 @@ export default function HomePage() {
 
       {/* Bottom navigation */}
       <nav className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 pb-safe z-50 shadow-soft transition-all duration-300 ${isMenuOpen ? 'opacity-0 pointer-events-none translate-y-full' : 'opacity-100 translate-y-0'}`}>
-        <div className="flex justify-around items-center py-3 px-4">
+        <div className="flex justify-around items-center py-3 px-2">
           <button className="flex flex-col items-center gap-1 group relative">
             <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
               <HomeIcon active={true} />
@@ -995,7 +1067,17 @@ export default function HomePage() {
             </div>
             <span className="text-[11px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("leaderboard")}</span>
           </button>
-          
+
+          <button
+            onClick={() => router.push('/market')}
+            className="flex flex-col items-center gap-1 group relative"
+          >
+            <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">
+              <MarketIcon />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">{tNav("market")}</span>
+          </button>
+
           <button
             onClick={() => router.push('/profile')}
             className="flex flex-col items-center gap-1 group relative"
