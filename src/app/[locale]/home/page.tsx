@@ -575,7 +575,7 @@ export default function HomePage() {
     if (!code || !isRoundActive) return;
     try {
       setRoundSubmitStatus({ kind: "idle", text: "" });
-      const res = await fetch("/api/round/submit", {
+      const res = await authFetch("/api/round/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
@@ -593,7 +593,7 @@ export default function HomePage() {
       console.error("Failed to submit round code:", error);
       setRoundSubmitStatus({ kind: "error", text: "Network error while submitting code." });
     }
-  }, [isRoundActive, roundCodeInput]);
+  }, [authFetch, isRoundActive, roundCodeInput]);
 
   // Helper to safely reset play button state
   const resetPlayButtonState = useCallback(() => {
@@ -1049,8 +1049,8 @@ export default function HomePage() {
               <p className="text-[10px] font-bold text-gray-800">Telegram Round Code</p>
               <p className="text-[10px] text-gray-500">
                 {isRoundActive
-                  ? `Round active, submit in ${formatRoundTimer(roundTimeLeftSeconds)}`
-                  : "Check Telegram and keep notifications on"}
+                  ? `Live now. Enter in ${formatRoundTimer(roundTimeLeftSeconds)}. Top 5 wallets win USD prize.`
+                  : "Watch Telegram. Random-time codes drop daily. Be in first 5 wallets."}
               </p>
             </div>
             <span
@@ -1073,7 +1073,7 @@ export default function HomePage() {
               value={roundCodeInput}
               disabled={!isRoundActive}
               onChange={(e) => setRoundCodeInput(e.target.value.toUpperCase())}
-              placeholder="Enter code from Telegram"
+              placeholder="Code from Telegram bot"
               className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-semibold tracking-wider text-gray-700 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#d76afd]/30"
             />
             <button

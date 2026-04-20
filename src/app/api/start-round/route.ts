@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { startRound } from "@/lib/telegram-round-store";
 
-const DEFAULT_ROUND_DURATION_SECONDS = 15 * 60;
+const DEFAULT_ROUND_DURATION_SECONDS = 3 * 60;
 
 export async function POST(req: NextRequest) {
   try {
