@@ -137,6 +137,13 @@ export default function HomePage() {
   const [tournamentStatus, setTournamentStatus] = useState<'upcoming' | 'active' | 'ended'>('upcoming');
   const [tournamentCountdown, setTournamentCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [showOpenHighlights, setShowOpenHighlights] = useState(false);
+  const [roundCodeInput, setRoundCodeInput] = useState("");
+  const [roundEndTimeMs, setRoundEndTimeMs] = useState<number | null>(null);
+  const [roundTimeLeftSeconds, setRoundTimeLeftSeconds] = useState(0);
+  const [roundSubmitStatus, setRoundSubmitStatus] = useState<{
+    kind: "idle" | "success" | "error";
+    text: string;
+  }>({ kind: "idle", text: "" });
   
   // Game session state
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -491,6 +498,49 @@ export default function HomePage() {
     
     return () => clearInterval(timer);
   }, [TOURNAMENT_START, TOURNAMENT_END]);
+
+  // Telegram round SSE: enables code submit area instantly without refresh.
+  useEffect(() => {
+    const eventSource = new EventSource("/api/events");
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as {
+          type?: string;
+          active?: boolean;
+          endTimeMs?: number | null;
+        };
+
+        if (data.type === "round-state" || data.type === "new-round") {
+          setRoundEndTimeMs(data.active ? (data.endTimeMs ?? null) : null);
+          setRoundSubmitStatus({ kind: "idle", text: "" });
+          setRoundCodeInput("");
+        }
+      } catch (error) {
+        console.warn("Failed to parse /api/events payload:", error);
+      }
+    };
+
+    return () => eventSource.close();
+  }, []);
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      if (!roundEndTimeMs) {
+        setRoundTimeLeftSeconds(0);
+        return;
+      }
+      const secondsLeft = Math.max(0, Math.ceil((roundEndTimeMs - Date.now()) / 1000));
+      setRoundTimeLeftSeconds(secondsLeft);
+      if (secondsLeft === 0) {
+        setRoundEndTimeMs(null);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [roundEndTimeMs]);
   
   // Get user info
   const user = fcContext?.user || context?.user;
@@ -509,10 +559,41 @@ export default function HomePage() {
     return null;
   }, [address, user?.fid, user?.username]);
   const shouldShowGiveawayAnnouncement = Date.now() < GIVEAWAY_ANNOUNCEMENT_END;
+  const isRoundActive = roundTimeLeftSeconds > 0;
   const formatAddress = (addr: string) => {
     if (!addr || addr.length < 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
+  const formatRoundTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const handleRoundCodeSubmit = useCallback(async () => {
+    const code = roundCodeInput.trim().toUpperCase();
+    if (!code || !isRoundActive) return;
+    try {
+      setRoundSubmitStatus({ kind: "idle", text: "" });
+      const res = await fetch("/api/round/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        setRoundSubmitStatus({
+          kind: "error",
+          text: data?.error || "Could not submit code. Try again.",
+        });
+        return;
+      }
+      setRoundSubmitStatus({ kind: "success", text: data?.message || "Code accepted." });
+    } catch (error) {
+      console.error("Failed to submit round code:", error);
+      setRoundSubmitStatus({ kind: "error", text: "Network error while submitting code." });
+    }
+  }, [isRoundActive, roundCodeInput]);
 
   // Helper to safely reset play button state
   const resetPlayButtonState = useCallback(() => {
@@ -824,7 +905,7 @@ export default function HomePage() {
       : t("noEnergy");
 
   return (
-    <main className="flex flex-col h-[100dvh] bg-[#ebeff2] relative overflow-hidden">
+    <main className="flex flex-col h-[100dvh] sm:h-full bg-[#ebeff2] relative overflow-hidden">
       <HowToPlayOverlay />
 
       {/* Background Candlestick Decorations */}
@@ -961,6 +1042,59 @@ export default function HomePage() {
           </div>
           <p className="text-[8px] text-gray-400 text-center mt-1">{t("top100Prize")}</p>
         </div>
+
+        <div className="max-w-sm mx-auto mt-2 bg-white rounded-2xl border border-gray-100 shadow-card px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-bold text-gray-800">Telegram Round Code</p>
+              <p className="text-[10px] text-gray-500">
+                {isRoundActive
+                  ? `Round active, submit in ${formatRoundTimer(roundTimeLeftSeconds)}`
+                  : "Check Telegram and keep notifications on"}
+              </p>
+            </div>
+            <span
+              className={`text-[10px] px-2 py-1 rounded-full border font-semibold ${
+                isRoundActive
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                  : "bg-gray-50 text-gray-500 border-gray-200"
+              }`}
+            >
+              {isRoundActive ? "Live" : "Waiting"}
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              maxLength={16}
+              value={roundCodeInput}
+              disabled={!isRoundActive}
+              onChange={(e) => setRoundCodeInput(e.target.value.toUpperCase())}
+              placeholder="Enter code from Telegram"
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-semibold tracking-wider text-gray-700 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#d76afd]/30"
+            />
+            <button
+              onClick={handleRoundCodeSubmit}
+              disabled={!isRoundActive || !roundCodeInput.trim()}
+              className="px-3 py-2 rounded-xl text-[11px] font-bold bg-[#d76afd] text-white disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              Submit
+            </button>
+          </div>
+
+          {roundSubmitStatus.kind !== "idle" && (
+            <p
+              className={`mt-2 text-[10px] font-semibold ${
+                roundSubmitStatus.kind === "success" ? "text-emerald-600" : "text-red-500"
+              }`}
+            >
+              {roundSubmitStatus.text}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Center: Play Button */}
@@ -1048,7 +1182,7 @@ export default function HomePage() {
       </a>
 
       {/* Bottom navigation */}
-      <nav className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 pb-safe z-50 shadow-soft transition-all duration-300 ${isMenuOpen ? 'opacity-0 pointer-events-none translate-y-full' : 'opacity-100 translate-y-0'}`}>
+      <nav className={`fixed sm:static bottom-0 left-0 w-full sm:mt-auto bg-white border-t border-gray-200 pb-safe z-50 shadow-soft transition-all duration-300 ${isMenuOpen ? 'opacity-0 pointer-events-none translate-y-full' : 'opacity-100 translate-y-0'}`}>
         <div className="flex justify-around items-center py-3 px-2">
           <button className="flex flex-col items-center gap-1 group relative">
             <div className="relative transform group-hover:scale-105 group-active:scale-95 transition-transform duration-200">

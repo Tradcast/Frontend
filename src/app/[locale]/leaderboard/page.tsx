@@ -512,7 +512,7 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 shadow-soft">
+      <nav className="fixed sm:static bottom-0 left-0 w-full sm:mt-auto bg-white border-t border-gray-200 z-50 shadow-soft">
         <div className="flex justify-around items-center py-4 px-2 pb-safe">
           <button
             onClick={() => router.push('/home')}

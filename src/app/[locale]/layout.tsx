@@ -72,8 +72,34 @@ export default async function LocaleLayout({
       <Providers>
         <MenuProvider>
           <NotificationProvider>
-            <ConditionalNavbar />
-            <main className="flex-1">{children}</main>
+            {/* Web-only phone frame wrapper.
+                On mobile / MiniPay / Farcaster (viewport < 640px), this renders as plain passthrough.
+                On desktop web (>= 640px), content is placed inside a centered phone-shaped frame.
+                The frame itself grows with content (no internal scroll container) so the browser
+                window handles all scrolling naturally. `transform: translateZ(0)` on the frame
+                still creates a new containing block to scope any `position: fixed` top navbar
+                (ConditionalNavbar, used on /home) inside the frame. */}
+            <div className="sm:h-screen sm:bg-gradient-to-br sm:from-slate-900 sm:via-slate-800 sm:to-slate-900 sm:flex sm:flex-col sm:items-center sm:justify-center">
+              <div
+                className="
+                  sm:w-[630px] sm:max-w-[100vw]
+                  sm:h-screen
+                  sm:rounded-[40px]
+                  sm:border-[8px] sm:border-black
+                  sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.75)]
+                  sm:ring-1 sm:ring-slate-700/40
+                  sm:overflow-y-auto sm:overflow-x-hidden sm:overscroll-contain
+                  sm:[transform:translateZ(0)]
+                  sm:bg-[#ebeff2]
+                  sm:scrollbar-hide
+                  sm:relative
+                  sm:flex sm:flex-col
+                "
+              >
+                <ConditionalNavbar />
+                <main className="flex-1 sm:h-full sm:min-h-0 sm:w-full">{children}</main>
+              </div>
+            </div>
           </NotificationProvider>
         </MenuProvider>
       </Providers>
