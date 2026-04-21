@@ -26,6 +26,7 @@ import { ensureWalletOnCeloChain } from "@/lib/ensure-celo-chain";
 import { getCeloFeeCurrencyForPaymentToken } from "@/lib/celo-fee-currency";
 import { sendCeloWebTxWithStableGasFeeOrCelo } from "@/lib/celo-web-stable-gas-tx";
 import { createCeloPublicClientForApp } from "@/lib/celo-public-client";
+import { TelegramPrizeHelpModal } from "@/components/TelegramPrizeHelpModal";
 
 // Contract addresses
 const GAME_CONTRACT_ADDRESS = "0x2AF88995303B5e02b705A904e478729CD9ABc319" as `0x${string}`;
@@ -103,6 +104,7 @@ const MarketIcon = ({ active }: { active?: boolean }) => (
 
 export default function HomePage() {
   const t = useTranslations("home");
+  const tAirdrop = useTranslations("airdrop");
   const tNav = useTranslations("nav");
   const { context, isMiniAppReady, isMiniPay, isWeb, isFarcaster } = useMiniApp();
   const { isMenuOpen } = useMenu();
@@ -137,14 +139,7 @@ export default function HomePage() {
   const [tournamentStatus, setTournamentStatus] = useState<'upcoming' | 'active' | 'ended'>('upcoming');
   const [tournamentCountdown, setTournamentCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [showOpenHighlights, setShowOpenHighlights] = useState(false);
-  const [roundCodeInput, setRoundCodeInput] = useState("");
-  const [roundEndTimeMs, setRoundEndTimeMs] = useState<number | null>(null);
-  const [roundTimeLeftSeconds, setRoundTimeLeftSeconds] = useState(0);
-  const [roundSubmitStatus, setRoundSubmitStatus] = useState<{
-    kind: "idle" | "success" | "error";
-    text: string;
-  }>({ kind: "idle", text: "" });
-  
+  const [showRoundCodeHelp, setShowRoundCodeHelp] = useState(false);
   // Game session state
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isStartingGame, setIsStartingGame] = useState(false);
@@ -499,49 +494,6 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, [TOURNAMENT_START, TOURNAMENT_END]);
 
-  // Telegram round SSE: enables code submit area instantly without refresh.
-  useEffect(() => {
-    const eventSource = new EventSource("/api/events");
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as {
-          type?: string;
-          active?: boolean;
-          endTimeMs?: number | null;
-        };
-
-        if (data.type === "round-state" || data.type === "new-round") {
-          setRoundEndTimeMs(data.active ? (data.endTimeMs ?? null) : null);
-          setRoundSubmitStatus({ kind: "idle", text: "" });
-          setRoundCodeInput("");
-        }
-      } catch (error) {
-        console.warn("Failed to parse /api/events payload:", error);
-      }
-    };
-
-    return () => eventSource.close();
-  }, []);
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      if (!roundEndTimeMs) {
-        setRoundTimeLeftSeconds(0);
-        return;
-      }
-      const secondsLeft = Math.max(0, Math.ceil((roundEndTimeMs - Date.now()) / 1000));
-      setRoundTimeLeftSeconds(secondsLeft);
-      if (secondsLeft === 0) {
-        setRoundEndTimeMs(null);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [roundEndTimeMs]);
-  
   // Get user info
   const user = fcContext?.user || context?.user;
   const walletAddress =
@@ -559,42 +511,10 @@ export default function HomePage() {
     return null;
   }, [address, user?.fid, user?.username]);
   const shouldShowGiveawayAnnouncement = Date.now() < GIVEAWAY_ANNOUNCEMENT_END;
-  const isRoundActive = roundTimeLeftSeconds > 0;
   const formatAddress = (addr: string) => {
     if (!addr || addr.length < 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
-  const formatRoundTimer = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-
-  const handleRoundCodeSubmit = useCallback(async () => {
-    const code = roundCodeInput.trim().toUpperCase();
-    if (!code || !isRoundActive) return;
-    try {
-      setRoundSubmitStatus({ kind: "idle", text: "" });
-      const res = await authFetch("/api/round/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        setRoundSubmitStatus({
-          kind: "error",
-          text: data?.error || "Could not submit code. Try again.",
-        });
-        return;
-      }
-      setRoundSubmitStatus({ kind: "success", text: data?.message || "Code accepted." });
-    } catch (error) {
-      console.error("Failed to submit round code:", error);
-      setRoundSubmitStatus({ kind: "error", text: "Network error while submitting code." });
-    }
-  }, [authFetch, isRoundActive, roundCodeInput]);
-
   // Helper to safely reset play button state
   const resetPlayButtonState = useCallback(() => {
     setIsStartingGame(false);
@@ -941,8 +861,8 @@ export default function HomePage() {
         </svg>
       </div>
 
-      {/* Top stats area */}
-      <header className="relative z-10 pt-[72px] px-4 pb-2">
+      {/* Top stats area — z-20 so flex-1 play section (-mt) cannot steal taps above it */}
+      <header className="relative z-20 pt-[72px] px-4 pb-2">
         {/* Stats row */}
         <div className="flex items-stretch justify-center gap-2 max-w-sm mx-auto">
           <div className="flex-1 bg-white rounded-2xl px-3 py-2.5 border border-gray-100 shadow-card flex flex-col items-center">
@@ -976,8 +896,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Tournament Banner */}
-      <div className="relative z-10 px-4 -mt-0.5">
+      {/* Tournament Banner + round code — z-20 above play section overlap */}
+      <div className="relative z-20 px-4 -mt-0.5">
         {shouldShowGiveawayAnnouncement && (
           <a
             href="https://t.me/simmerliq"
@@ -993,15 +913,15 @@ export default function HomePage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-gray-800 leading-tight">
-                    Telegram Subscribers Giveaway - 26 April
+                    {t("telegramGiveawayTitle")}
                   </p>
                   <p className="text-[10px] text-sky-600 font-semibold">
-                    Join Telegram to be eligible
+                    {t("telegramGiveawaySubtitle")}
                   </p>
                 </div>
               </div>
               <span className="text-[10px] px-2 py-1 rounded-full bg-sky-50 text-sky-600 font-semibold border border-sky-100 shrink-0">
-                Join
+                {t("joinShort")}
               </span>
             </div>
           </a>
@@ -1043,61 +963,40 @@ export default function HomePage() {
           <p className="text-[8px] text-gray-400 text-center mt-1">{t("top100Prize")}</p>
         </div>
 
-        <div className="max-w-sm mx-auto mt-2 bg-white rounded-2xl border border-gray-100 shadow-card px-3 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-bold text-gray-800">Telegram Round Code</p>
-              <p className="text-[10px] text-gray-500">
-                {isRoundActive
-                  ? `Live now. Enter in ${formatRoundTimer(roundTimeLeftSeconds)}. Top 5 wallets win USD prize.`
-                  : "Watch Telegram. Random-time codes drop daily. Be in first 5 wallets."}
-              </p>
-            </div>
-            <span
-              className={`text-[10px] px-2 py-1 rounded-full border font-semibold ${
-                isRoundActive
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                  : "bg-gray-50 text-gray-500 border-gray-200"
-              }`}
-            >
-              {isRoundActive ? "Live" : "Waiting"}
-            </span>
-          </div>
-
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              maxLength={16}
-              value={roundCodeInput}
-              disabled={!isRoundActive}
-              onChange={(e) => setRoundCodeInput(e.target.value.toUpperCase())}
-              placeholder="Code from Telegram bot"
-              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-semibold tracking-wider text-gray-700 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#d76afd]/30"
-            />
+        <div className="max-w-sm mx-auto mt-2 w-full flex items-stretch gap-2">
+          <div className="relative flex-1 min-w-0">
             <button
-              onClick={handleRoundCodeSubmit}
-              disabled={!isRoundActive || !roundCodeInput.trim()}
-              className="px-3 py-2 rounded-xl text-[11px] font-bold bg-[#d76afd] text-white disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+              type="button"
+              onClick={() => router.push("/telegram-rewards")}
+              className="w-full h-full flex items-center justify-between gap-3 rounded-2xl border border-[#d76afd]/25 bg-gradient-to-r from-white to-[#d76afd]/[0.08] px-3 py-2.5 pr-10 shadow-card text-left hover:border-[#d76afd]/40 active:scale-[0.99] transition-transform"
             >
-              Submit
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold text-[#d76afd] tracking-wide uppercase">{t("prizeCodeTitle")}</p>
+                <p className="text-[10px] text-gray-600 leading-snug">{t("prizeCodeSubtitle")}</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRoundCodeHelp(true)}
+              className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full border border-gray-200 bg-white text-gray-600 text-xs font-bold hover:bg-[#f8f3ff] hover:border-[#d76afd]/40 hover:text-[#d76afd] transition-colors shadow-sm"
+              aria-label={tAirdrop("telegramPrizeHelpAria")}
+            >
+              ?
             </button>
           </div>
-
-          {roundSubmitStatus.kind !== "idle" && (
-            <p
-              className={`mt-2 text-[10px] font-semibold ${
-                roundSubmitStatus.kind === "success" ? "text-emerald-600" : "text-red-500"
-              }`}
-            >
-              {roundSubmitStatus.text}
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={() => router.push("/telegram-rewards")}
+            className="shrink-0 rounded-xl bg-[#d76afd] text-white text-[10px] font-bold px-2.5 py-2.5 shadow-button hover:opacity-95 active:scale-[0.99] transition-transform leading-tight"
+          >
+            {t("prizeCodeClickToSend")}
+          </button>
         </div>
       </div>
 
-      {/* Center: Play Button */}
+      <TelegramPrizeHelpModal open={showRoundCodeHelp} onClose={() => setShowRoundCodeHelp(false)} />
+
+      {/* Center: Play Button — z-10 stays below header/tournament/round row (z-20) */}
       <section className="flex-1 flex flex-col items-center justify-center z-10 relative -mt-10">
         {energy !== null && energy === 0 && (
           <p className="text-red-500 text-sm font-semibold mb-3">{t("noEnergyLeft")}</p>
@@ -1223,6 +1122,7 @@ export default function HomePage() {
           </button>
         </div>
       </nav>
+
     </main>
   );
 }

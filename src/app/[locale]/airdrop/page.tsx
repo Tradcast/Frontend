@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -30,9 +31,19 @@ const GiftIcon = () => (
 
 export default function AirdropPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("airdrop");
   const tc = useTranslations("common");
-  const [activeTab, setActiveTab] = useState('holdtpoints');
+  const [activeTab, setActiveTab] = useState<"holdtpoints" | "airdrop">("holdtpoints");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "telegram" || tab === "telegram-rewards") {
+      router.replace("/telegram-rewards");
+      return;
+    }
+    if (tab === "airdrop") setActiveTab("airdrop");
+  }, [searchParams, router]);
 
   return (
     <main className="flex flex-col min-h-screen bg-[#ebeff2] relative overflow-hidden">
@@ -192,19 +203,16 @@ export default function AirdropPage() {
         {/* Airdrop Tab Content */}
         {activeTab === 'airdrop' && (
           <div className="flex flex-col items-center w-full max-w-md">
-            {/* Animated rocket */}
             <div className="relative mb-8 animate-bounce">
               <div className="relative bg-white p-8 rounded-3xl border border-gray-200 shadow-card">
                 <RocketIcon />
               </div>
             </div>
 
-            {/* Title */}
             <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
               {t("airdropHeading")}
             </h2>
 
-            {/* Coming Soon badge */}
             <div className="relative mb-6">
               <div className="relative px-8 py-3 bg-gradient-to-r from-[#d76afd] to-[#a855f7] rounded-full shadow-button">
                 <span className="text-xl font-bold text-white tracking-wider">
@@ -213,12 +221,10 @@ export default function AirdropPage() {
               </div>
             </div>
 
-            {/* Description */}
             <p className="text-gray-500 text-center max-w-md text-sm leading-relaxed">
               {t("airdropBlurb")}
             </p>
 
-            {/* Decorative dots */}
             <div className="flex gap-2 mt-8">
               <div className="w-2 h-2 rounded-full bg-[#d76afd] animate-pulse"></div>
               <div className="w-2 h-2 rounded-full bg-[#d76afd] animate-pulse" style={{ animationDelay: '0.2s' }}></div>

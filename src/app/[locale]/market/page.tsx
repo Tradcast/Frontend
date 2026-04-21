@@ -81,7 +81,7 @@ const VaultIcon = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-const ComingSoonBadge = ({ label = "Coming Soon" }: { label?: string }) => (
+const ComingSoonBadge = ({ label }: { label: string }) => (
   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-bold uppercase tracking-wider">
     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
     {label}
@@ -105,7 +105,7 @@ const SectionHeading = ({
       <h2 className="text-base font-bold text-gray-800 leading-tight">{title}</h2>
       {subtitle && <p className="text-[11px] text-gray-500 leading-tight">{subtitle}</p>}
     </div>
-    <ComingSoonBadge />
+    <ComingSoonBadge label={useTranslations("market")("comingSoon")} />
   </div>
 );
 
@@ -142,6 +142,7 @@ const formatNumber = (n: number) => n.toLocaleString();
 
 export default function MarketPage() {
   const tNav = useTranslations("nav");
+  const tMarket = useTranslations("market");
   const { isMiniAppReady, isMiniPay, isWeb } = useMiniApp();
   const router = useRouter();
   const { address, isConnected, isConnecting } = useAccount();
@@ -230,8 +231,8 @@ export default function MarketPage() {
       <div className="flex-1 px-4 pt-8 pb-28 z-10 max-w-2xl w-full mx-auto">
         {/* Page Title */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Market</h1>
-          <p className="text-gray-500 text-xs">Buy energy, boost your rewards, and cash out TPOINTs.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">{tMarket("title")}</h1>
+          <p className="text-gray-500 text-xs">{tMarket("subtitle")}</p>
           <div className="flex items-center justify-center gap-2 mt-3">
             <div className="h-[2px] w-6 bg-gradient-to-r from-transparent to-[#bdecf6] rounded-full" />
             <div className="h-1.5 w-20 bg-gradient-to-r from-[#bdecf6] to-[#d76afd] rounded-full" />
@@ -243,8 +244,8 @@ export default function MarketPage() {
         <section className="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-4">
           <SectionHeading
             icon={<LightningIcon />}
-            title="Energy Packs"
-            subtitle="Top up your energy with stablecoins (USDC / USDT / USDm)."
+            title={tMarket("energyPacksTitle")}
+            subtitle={tMarket("energyPacksSubtitle")}
           />
           <div className="grid grid-cols-2 gap-2">
             {ENERGY_PACKS.map((pack) => (
@@ -256,7 +257,7 @@ export default function MarketPage() {
                   <LightningIcon className="text-[#d76afd]" />
                   {pack.energy}
                 </div>
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Energy</span>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">{tMarket("energyLabel")}</span>
                 <div className="mt-2 px-2 py-0.5 rounded-full bg-[#d76afd]/10 text-[#d76afd] text-xs font-bold">
                   {formatCents(pack.priceCents)}
                 </div>
@@ -264,13 +265,13 @@ export default function MarketPage() {
                   disabled
                   className="mt-3 w-full text-[11px] font-semibold py-1.5 rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed"
                 >
-                  Coming Soon
+                  {tMarket("comingSoon")}
                 </button>
               </div>
             ))}
           </div>
           <p className="text-[10px] text-gray-400 mt-3 text-center">
-            Prices are admin-adjustable on-chain.
+            {tMarket("energyFooter")}
           </p>
         </section>
 
@@ -278,8 +279,8 @@ export default function MarketPage() {
         <section className="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-4">
           <SectionHeading
             icon={<RocketIcon />}
-            title="Reward Boosters"
-            subtitle="Earn multiplied TPOINTs and score for a limited time."
+            title={tMarket("boostersTitle")}
+            subtitle={tMarket("boostersSubtitle")}
           />
           <div className="grid grid-cols-1 gap-2">
             {BOOSTS.map((boost, idx) => (
@@ -303,9 +304,9 @@ export default function MarketPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-800 leading-tight">
-                      {boost.multiplier} TPOINTs & Score
+                      {tMarket("boosterLineTitle", { multiplier: boost.multiplier })}
                     </p>
-                    <p className="text-[11px] text-gray-500 leading-tight">for {boost.duration}</p>
+                    <p className="text-[11px] text-gray-500 leading-tight">{tMarket("boosterForDuration", { duration: boost.duration })}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end shrink-0 gap-1">
@@ -316,14 +317,14 @@ export default function MarketPage() {
                     disabled
                     className="text-[10px] font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed"
                   >
-                    Coming Soon
+                    {tMarket("comingSoon")}
                   </button>
                 </div>
               </div>
             ))}
           </div>
           <p className="text-[10px] text-gray-400 mt-3 text-center">
-            Active boost time & expiry are stored on-chain for reliability.
+            {tMarket("boostersFooter")}
           </p>
         </section>
 
@@ -331,22 +332,22 @@ export default function MarketPage() {
         <section className="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-4">
           <SectionHeading
             icon={<CoinIcon />}
-            title="TPOINT Payouts"
-            subtitle="Burn TPOINTs and receive stablecoin from treasury."
+            title={tMarket("payoutsTitle")}
+            subtitle={tMarket("payoutsSubtitle")}
           />
 
           <div className="flex items-center justify-between bg-gradient-to-r from-[#d76afd]/5 to-[#bdecf6]/20 border border-[#d76afd]/10 rounded-xl px-3 py-2 mb-3">
             <div className="flex items-center gap-2">
               <VaultIcon className="text-[#d76afd]" />
               <div className="min-w-0">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Treasury Balance</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">{tMarket("treasuryBalance")}</p>
                 <p className="text-sm font-bold text-gray-800 tabular-nums">
                   ${treasuryBalanceUsd.toFixed(2)}
                 </p>
               </div>
             </div>
             <span className="text-[10px] text-gray-400">
-              Payouts pause if treasury &lt; $15
+              {tMarket("treasuryPauseHint")}
             </span>
           </div>
 
@@ -365,7 +366,7 @@ export default function MarketPage() {
                       {formatNumber(p.burn)} TPOINTs
                     </p>
                     <p className="text-[11px] text-gray-500 leading-tight">
-                      You receive <span className="text-emerald-600 font-bold">${p.rewardUsd.toFixed(2)}</span>
+                      {tMarket("youReceive")} <span className="text-emerald-600 font-bold">${p.rewardUsd.toFixed(2)}</span>
                     </p>
                   </div>
                 </div>
@@ -373,7 +374,7 @@ export default function MarketPage() {
                   disabled
                   className="text-[10px] font-semibold px-3 py-1.5 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed shrink-0"
                 >
-                  Coming Soon
+                  {tMarket("comingSoon")}
                 </button>
               </div>
             ))}
@@ -386,10 +387,10 @@ export default function MarketPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-gray-800 leading-tight">
-                    Burn 2,000,000 TPOINTs
+                    {tMarket("trealBurnTitle")}
                   </p>
                   <p className="text-[11px] text-gray-500 leading-tight">
-                    Unlock <span className="text-[#d76afd] font-bold">Treal</span> access for 1 month
+                    {tMarket("trealUnlockPrefix")} <span className="text-[#d76afd] font-bold">Treal</span> {tMarket("trealUnlockSuffix")}
                   </p>
                 </div>
               </div>
@@ -397,13 +398,13 @@ export default function MarketPage() {
                 disabled
                 className="text-[10px] font-semibold px-3 py-1.5 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed shrink-0"
               >
-                Coming Soon
+                {tMarket("comingSoon")}
               </button>
             </div>
           </div>
 
           <p className="text-[10px] text-gray-400 mt-3 text-center">
-            Burn date is anchored on-chain — access window is verifiable.
+            {tMarket("payoutsFooter")}
           </p>
         </section>
 
@@ -411,22 +412,22 @@ export default function MarketPage() {
         <section className="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-4">
           <SectionHeading
             icon={<UsersIcon />}
-            title="Invitation Rewards"
-            subtitle="Invite friends to earn TPOINTs. Claim every 24 hours."
+            title={tMarket("invitationTitle")}
+            subtitle={tMarket("invitationSubtitle")}
           />
 
           <div className="flex items-center justify-between bg-gradient-to-r from-[#bdecf6]/30 to-[#d76afd]/10 border border-[#bdecf6] rounded-xl px-3 py-3 mb-3">
             <div className="min-w-0">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">You Invited</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">{tMarket("youInvited")}</p>
               <p className="text-xl font-bold text-gray-800 tabular-nums">
-                {invitedCount} <span className="text-xs font-semibold text-gray-500">users</span>
+                {invitedCount} <span className="text-xs font-semibold text-gray-500">{tMarket("users")}</span>
               </p>
             </div>
             <div className="text-right min-w-0">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Claimable</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">{tMarket("claimable")}</p>
               <p className="text-xl font-bold text-[#d76afd] tabular-nums">
                 {formatNumber(claimableInvitationTpoints)}{" "}
-                <span className="text-xs font-semibold text-gray-500">TPOINTs</span>
+                <span className="text-xs font-semibold text-gray-500">{tMarket("tpoints")}</span>
               </p>
             </div>
           </div>
@@ -435,11 +436,11 @@ export default function MarketPage() {
             disabled
             className="w-full py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
           >
-            Claim Invitation Rewards · Coming Soon
+            {tMarket("claimInvitationButton")}
           </button>
 
           <p className="text-[10px] text-gray-400 mt-3 text-center">
-            Max 10,000 TPOINTs per claim · 1 claim per 23.5 hours.
+            {tMarket("invitationFooter")}
           </p>
         </section>
 
@@ -447,30 +448,30 @@ export default function MarketPage() {
         <section className="bg-white rounded-2xl border border-gray-200 shadow-card p-4 mb-4">
           <SectionHeading
             icon={<span className="text-xl">🔥</span>}
-            title="Daily Streak Reward"
-            subtitle="Claim free TPOINTs every day when your streak is 10+."
+            title={tMarket("streakTitle")}
+            subtitle={tMarket("streakSubtitle")}
           />
           <div className="flex items-center justify-between bg-orange-50 border border-orange-100 rounded-xl px-3 py-3">
             <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Current Streak</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">{tMarket("currentStreak")}</p>
               <p className="text-xl font-bold text-orange-500 tabular-nums">{currentStreak} 🔥</p>
             </div>
             <button
               onClick={() => router.push("/profile")}
               className="text-[11px] font-semibold px-3 py-2 rounded-full bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 transition-colors"
             >
-              Go to Profile
+              {tMarket("goToProfile")}
             </button>
           </div>
           <p className="text-[10px] text-gray-400 mt-3 text-center">
-            Max 5,000 TPOINTs per claim · 1 claim per 23.5 hours.
+            {tMarket("streakFooter")}
           </p>
         </section>
 
         {/* Disclaimer */}
         <div className="text-center px-4">
           <p className="text-[10px] text-gray-400 leading-relaxed">
-            These features are not live yet. Smart contracts are being finalized — stay tuned!
+            {tMarket("disclaimer")}
           </p>
         </div>
       </div>
