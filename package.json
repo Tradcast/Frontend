@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
+    "@farcaster/frame-sdk": "^0.2.0",
     "@farcaster/miniapp-sdk": "^0.2.3",
     "@farcaster/miniapp-wagmi-connector": "^1.1.1",
     "@farcaster/quick-auth": "^0.0.8",
