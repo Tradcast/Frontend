@@ -1,4 +1,4 @@
 declare module "@farcaster/frame-sdk" {
-  const frameSdk: any;
-  export default frameSdk;
+  export const sdk: any;
+  export default sdk;
 }
